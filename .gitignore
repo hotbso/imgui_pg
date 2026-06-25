@@ -1,0 +1,15 @@
+# Build artifacts
+build/
+
+# X-Plane SDK (download separately from https://developer.x-plane.com/sdk/)
+SDK/
+
+# Editor artifacts
+.vscode/
+.idea/
+*.swp
+*~
+
+# OS artifacts
+.DS_Store
+Thumbs.db
