@@ -35,14 +35,14 @@
 #ifndef IMGWINDOW_H
 #define IMGWINDOW_H
 
-#include "SystemGL.h"
-
 #include <climits>
 #include <string>
 #include <memory>
 
 #include <XPLMDisplay.h>
 #include <XPLMProcessing.h>
+#include <XPLMPanelGraphics.h>
+
 #include <imgui.h>
 #include <queue>
 
@@ -274,6 +274,7 @@ protected:
 
 private:
     std::shared_ptr<ImgFontAtlas> mFontAtlas;
+    std::vector<XPLMDrawCall_t> draw_calls;
 
     static void DrawWindowCB(XPLMWindowID inWindowID, void *inRefcon);
 
@@ -340,7 +341,7 @@ private:
 
     XPLMWindowID mWindowID;
     ImGuiContext *mImGuiContext;
-    GLuint mFontTexture;
+    void* mFontTexture;
 
     int mTop;
     int mBottom;

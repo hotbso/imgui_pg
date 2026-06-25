@@ -37,6 +37,9 @@
 #include <XPLMDataAccess.h>
 #include <XPLMDisplay.h>
 #include <XPLMGraphics.h>
+#include <XPLMPanelGraphics.h>
+
+#include "log_msg.h"
 
 // size of "frame" around a resizable window, by which its size can be changed
 constexpr int WND_RESIZE_LEFT_WIDTH     = 15;
@@ -140,9 +143,12 @@ ImgWindow::ImgWindow(
 	style.WindowRounding = 0;
 
 	// bind the font
+    assert(mFontAtlas);
 	if (mFontAtlas) {
-        mFontTexture = static_cast<GLuint>(io.Fonts->TexID);
-    } else {
+        mFontTexture = reinterpret_cast<void*>(io.Fonts->TexID);
+    }
+#if 0
+    else {
         if (!iFontAtlas || iFontAtlas->TexID == 0) {
             // fallback binding if an atlas wasn't explicitly set.
             unsigned char *pixels;
@@ -171,6 +177,7 @@ ImgWindow::ImgWindow(
             io.Fonts->SetTexID((ImTextureID)(mFontTexture));
         }
     }
+#endif
 
 	// disable OSX-like keyboard behaviours always - we don't have the keymapping for it.
 	io.ConfigMacOSXBehaviors = false;
@@ -195,8 +202,11 @@ ImgWindow::ImgWindow(
 		decoration,
 		layer,
 		HandleRightClickFuncCB,
+        xplm_WindowContentTypePanelGraphics,
+        nullptr
 	};
 	mWindowID = XPLMCreateWindowEx(&windowParams);
+    draw_calls.reserve(1000); // reserve some space to avoid reallocations
 }
 
 ImgWindow::~ImgWindow()
@@ -204,7 +214,7 @@ ImgWindow::~ImgWindow()
 	ImGui::SetCurrentContext(mImGuiContext);
 	if (!mFontAtlas) {
 	    // if we didn't have an explicit font atlas, destroy the texture.
-        glDeleteTextures(1, &mFontTexture);
+        XPLMDestroyTexture(mFontTexture);
     }
 	ImGui::DestroyContext(mImGuiContext);
 	XPLMDestroyWindow(mWindowID);
@@ -272,15 +282,46 @@ ImgWindow::boxelsToNative(int x, int y, int &outX, int &outY)
  *     the upstream one.
  */
 
-void
-ImgWindow::RenderImGui(ImDrawData *draw_data)
-{
-	// Avoid rendering when minimized, scale coordinates for retina displays (screen coordinates != framebuffer coordinates)
-	ImGuiIO& io = ImGui::GetIO();
-    if (io.DisplayFramebufferScale.x != 1.0 ||
-        io.DisplayFramebufferScale.y != 1.0)
+void ImgWindow::RenderImGui(ImDrawData* draw_data) {
+    // Avoid rendering when minimized, scale coordinates for retina displays (screen coordinates != framebuffer
+    // coordinates)
+    ImGuiIO& io = ImGui::GetIO();
+    if (io.DisplayFramebufferScale.x != 1.0 || io.DisplayFramebufferScale.y != 1.0) {
         draw_data->ScaleClipRects(io.DisplayFramebufferScale);
+    }
 
+    for (int n = 0; n < draw_data->CmdListsCount; n++) {
+        LogMsg("ImgWindow::RenderImGui: processing draw list %d of %d", n, draw_data->CmdListsCount);
+        const ImDrawList* cmd_list = draw_data->CmdLists[n];
+        const ImDrawVert* vtx_buffer = cmd_list->VtxBuffer.Data;
+        const ImDrawIdx* idx_buffer = cmd_list->IdxBuffer.Data;
+
+        XPLMMesh_t mesh;
+        mesh.vertex_count = cmd_list->VtxBuffer.Size;
+        mesh.vertices = (const float*)vtx_buffer;
+        mesh.index_count = cmd_list->IdxBuffer.Size;
+        mesh.indices = idx_buffer;
+
+        int idx_ofs = 0;
+        for (int cmd_i = 0; cmd_i < cmd_list->CmdBuffer.Size; cmd_i++) {
+            const ImDrawCmd* pcmd = &cmd_list->CmdBuffer[cmd_i];
+            XPLMDrawCall_t drc;
+            drc.tex_ref = (void*)(intptr_t)pcmd->TextureId;
+            drc.scissors[0] = pcmd->ClipRect.x;
+            drc.scissors[1] = pcmd->ClipRect.y;
+            drc.scissors[2] = pcmd->ClipRect.z;
+            drc.scissors[3] = pcmd->ClipRect.w;
+            drc.idx_offset = idx_ofs;
+            drc.element_count = pcmd->ElemCount;
+            drc.vtx_offset = 0; // since we're using a single mesh for the entire draw list
+            draw_calls.push_back(drc);
+            idx_ofs += pcmd->ElemCount;
+        }
+        XPLMDrawCalls(&mesh, draw_calls.size(), draw_calls.data());
+        draw_calls.clear(); // clear for the next draw list
+        LogMsg("draw_calls.capacity() after processing draw list %d: %zu", n, draw_calls.capacity());
+    }
+#if 0
     updateMatrices();
 
 	// We are using the OpenGL fixed pipeline because messing with the
@@ -345,6 +386,7 @@ ImgWindow::RenderImGui(ImDrawData *draw_data)
 	glBindTexture(GL_TEXTURE_2D, 0);
 	glPopAttrib();
 	glPopClientAttrib();
+#endif
 }
 
 void

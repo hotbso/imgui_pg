@@ -34,20 +34,23 @@
 
 #include "ImgFontAtlas.h"
 #include <XPLMGraphics.h>
+#include <XPLMPanelGraphics.h>
+
+#include "log_msg.h"
 
 ImgFontAtlas::ImgFontAtlas():
     mOurAtlas(nullptr),
     mTextureBound(false),
-    mGLTextureNum(0)
+    mPGTextureId(0)
 {
     mOurAtlas = new ImFontAtlas;
+    LogMsg("ImgFontAtlas::ImgFontAtlas: created ImFontAtlas");
 }
 
 ImgFontAtlas::~ImgFontAtlas()
 {
     if (mTextureBound) {
-        GLuint glTexNum = mGLTextureNum;
-        glDeleteTextures(1, &glTexNum);
+        XPLMDestroyTexture(mPGTextureId);
         mTextureBound = false;
     }
     delete mOurAtlas;
@@ -116,11 +119,15 @@ ImgFontAtlas::bindTexture()
     if (mTextureBound)
         return;
 
-    XPLMGenerateTextureNumbers(&mGLTextureNum, 1);
+    LogMsg("ImgFontAtlas::bindTexture: binding font texture to OpenGL");
 
     unsigned char *pixData = nullptr;
     int width, height;
     mOurAtlas->GetTexDataAsRGBA32(&pixData, &width, &height);
+
+    #if 0
+    XPLMGenerateTextureNumbers(&mGLTextureNum, 1);
+
 
     XPLMBindTexture2d(mGLTextureNum, 0);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -129,5 +136,8 @@ ImgFontAtlas::bindTexture()
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixData);
 
     mOurAtlas->SetTexID((ImTextureID)(mGLTextureNum));
+#endif
+    mPGTextureId = XPLMCreateTexture(pixData, width, height);
+    mOurAtlas->SetTexID((ImTextureID)(intptr_t)mPGTextureId);
     mTextureBound = true;
 }

@@ -60,7 +60,6 @@ if(WIN32)
     target_link_libraries(imgui_pg PRIVATE
         ${XPLANE_SDK_PATH}/Libraries/Win/XPLM_64.lib
         pthread
-        opengl32
     )
     install(TARGETS imgui_pg RUNTIME DESTINATION "${CMAKE_CURRENT_SOURCE_DIR}/imgui_pg/win_x64")
 elseif(APPLE)
