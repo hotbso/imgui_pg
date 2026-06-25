@@ -252,7 +252,7 @@ ImgWindow::updateMatrices()
 	XPLMGetDatavi(gViewportRef, mViewport, 0, 4);
 }
 
-static void multMatrixVec4f(GLfloat dst[4], const GLfloat m[16], const GLfloat v[4])
+static void multMatrixVec4f(float dst[4], const float m[16], const float v[4])
 {
 	dst[0] = v[0] * m[0] + v[1] * m[4] + v[2] * m[8] + v[3] * m[12];
 	dst[1] = v[0] * m[1] + v[1] * m[5] + v[2] * m[9] + v[3] * m[13];
@@ -263,8 +263,8 @@ static void multMatrixVec4f(GLfloat dst[4], const GLfloat m[16], const GLfloat v
 void
 ImgWindow::boxelsToNative(int x, int y, int &outX, int &outY)
 {
-	GLfloat boxelPos[4] = { (GLfloat)x, (GLfloat)y, 0, 1 };
-	GLfloat eye[4], ndc[4];
+	float boxelPos[4] = { (float)x, (float)y, 0, 1 };
+	float eye[4], ndc[4];
 
 	multMatrixVec4f(eye, mModelView, boxelPos);
 	multMatrixVec4f(ndc, mProjection, eye);
