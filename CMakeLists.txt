@@ -13,7 +13,7 @@ endif()
 set(XPLIB "${CMAKE_CURRENT_SOURCE_DIR}/../xplib" CACHE PATH "xplib root")
 
 set(SOURCES
-    src/plugin.cpp
+    imgui_pg.cpp
     ${XPLIB}/log_msg.cpp
 )
 
