@@ -1,15 +1,37 @@
-# Build artifacts
+# Prerequisites
 build/
+*.d
+*.xpl
 
-# X-Plane SDK (download separately from https://developer.x-plane.com/sdk/)
-SDK/
+# Generated header
+version.h
 
-# Editor artifacts
-.vscode/
-.idea/
-*.swp
-*~
+# Compiled Object files
+*.slo
+*.lo
+*.o
+*.obj
 
-# OS artifacts
-.DS_Store
-Thumbs.db
+# Precompiled Headers
+*.gch
+*.pch
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+*.dll
+
+# Fortran module files
+*.mod
+*.smod
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+*.lib
+
+# Executables
+*.exe
+*.out
+*.app
