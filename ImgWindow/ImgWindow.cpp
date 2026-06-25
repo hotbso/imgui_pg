@@ -4,6 +4,7 @@
  * Integration for dear imgui into X-Plane.
  *
  * Copyright (C) 2018,2020, Christopher Collins
+ * Copyright (C) 2026, Holger Teutsch
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -147,39 +148,8 @@ ImgWindow::ImgWindow(
 	if (mFontAtlas) {
         mFontTexture = reinterpret_cast<void*>(io.Fonts->TexID);
     }
-#if 0
-    else {
-        if (!iFontAtlas || iFontAtlas->TexID == 0) {
-            // fallback binding if an atlas wasn't explicitly set.
-            unsigned char *pixels;
-            int width, height;
-            io.Fonts->GetTexDataAsAlpha8(&pixels, &width, &height);
 
-            // slightly stupid dance around the texture number due to XPLM not using GLint here.
-            int texNum = 0;
-            XPLMGenerateTextureNumbers(&texNum, 1);
-            mFontTexture = (GLuint)texNum;
-
-            // upload texture.
-            XPLMBindTexture2d((int)mFontTexture, 0);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-            glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
-            glTexImage2D(GL_TEXTURE_2D,
-                         0,
-                         GL_ALPHA,
-                         width,
-                         height,
-                         0,
-                         GL_ALPHA,
-                         GL_UNSIGNED_BYTE,
-                         pixels);
-            io.Fonts->SetTexID((ImTextureID)(mFontTexture));
-        }
-    }
-#endif
-
-	// disable OSX-like keyboard behaviours always - we don't have the keymapping for it.
+    // disable OSX-like keyboard behaviours always - we don't have the keymapping for it.
 	io.ConfigMacOSXBehaviors = false;
 
 	// try to inhibit a few resize/move behaviours that won't play nice with our window control.
@@ -291,7 +261,7 @@ void ImgWindow::RenderImGui(ImDrawData* draw_data) {
     }
 
     for (int n = 0; n < draw_data->CmdListsCount; n++) {
-        LogMsg("ImgWindow::RenderImGui: processing draw list %d of %d", n, draw_data->CmdListsCount);
+        //LogMsg("ImgWindow::RenderImGui: processing draw list %d of %d", n, draw_data->CmdListsCount);
         const ImDrawList* cmd_list = draw_data->CmdLists[n];
         const ImDrawVert* vtx_buffer = cmd_list->VtxBuffer.Data;
         const ImDrawIdx* idx_buffer = cmd_list->IdxBuffer.Data;
@@ -317,76 +287,11 @@ void ImgWindow::RenderImGui(ImDrawData* draw_data) {
             draw_calls.push_back(drc);
             idx_ofs += pcmd->ElemCount;
         }
+
         XPLMDrawCalls(&mesh, draw_calls.size(), draw_calls.data());
         draw_calls.clear(); // clear for the next draw list
         LogMsg("draw_calls.capacity() after processing draw list %d: %zu", n, draw_calls.capacity());
     }
-#if 0
-    updateMatrices();
-
-	// We are using the OpenGL fixed pipeline because messing with the
-	// shader-state in X-Plane is not very well documented, but using the fixed
-	// function pipeline is.
-
-	// 1TU + Alpha settings, no depth, no fog.
-	XPLMSetGraphicsState(0, 1, 0, 1, 1, 0, 0);
-	glPushClientAttrib(GL_CLIENT_ALL_ATTRIB_BITS);
-	glPushAttrib(GL_ENABLE_BIT | GL_COLOR_BUFFER_BIT | GL_TRANSFORM_BIT);
-	glDisable(GL_CULL_FACE);
-	glEnable(GL_SCISSOR_TEST);
-	glEnableClientState(GL_VERTEX_ARRAY);
-	glEnableClientState(GL_TEXTURE_COORD_ARRAY);
-	glEnableClientState(GL_COLOR_ARRAY);
-	glEnable(GL_TEXTURE_2D);
-
-	glMatrixMode(GL_PROJECTION);
-	glPushMatrix();
-	glScalef(1.0f, -1.0f, 1.0f);
-	glTranslatef(static_cast<GLfloat>(mLeft), static_cast<GLfloat>(-mTop), 0.0f);
-
-	// Render command lists
-	for (int n = 0; n < draw_data->CmdListsCount; n++)
-	{
-		const ImDrawList* cmd_list = draw_data->CmdLists[n];
-		const ImDrawVert* vtx_buffer = cmd_list->VtxBuffer.Data;
-		const ImDrawIdx* idx_buffer = cmd_list->IdxBuffer.Data;
-		glVertexPointer(2, GL_FLOAT, sizeof(ImDrawVert), (const GLvoid*)((const char*)vtx_buffer + offsetof(ImDrawVert, pos)));
-		glTexCoordPointer(2, GL_FLOAT, sizeof(ImDrawVert), (const GLvoid*)((const char*)vtx_buffer + offsetof(ImDrawVert, uv)));
-		glColorPointer(4, GL_UNSIGNED_BYTE, sizeof(ImDrawVert), (const GLvoid*)((const char*)vtx_buffer + offsetof(ImDrawVert, col)));
-
-		for (int cmd_i = 0; cmd_i < cmd_list->CmdBuffer.Size; cmd_i++)
-		{
-			const ImDrawCmd* pcmd = &cmd_list->CmdBuffer[cmd_i];
-			if (pcmd->UserCallback)	{
-				pcmd->UserCallback(cmd_list, pcmd);
-			} else {
-			    XPLMBindTexture2d((int)(intptr_t)pcmd->TextureId, 0);
-
-				// Scissors work in viewport space - must translate the coordinates from ImGui -> Boxels, then Boxels -> Native.
-				//FIXME: it must be possible to apply the scale+transform manually to the projection matrix so we don't need to doublestep.
-				int bTop, bLeft, bRight, bBottom;
-				translateImguiToBoxel(pcmd->ClipRect.x, pcmd->ClipRect.y, bLeft, bTop);
-				translateImguiToBoxel(pcmd->ClipRect.z, pcmd->ClipRect.w, bRight, bBottom);
-				int nTop, nLeft, nRight, nBottom;
-				boxelsToNative(bLeft, bTop, nLeft, nTop);
-				boxelsToNative(bRight, bBottom, nRight, nBottom);
-				glScissor(nLeft, nBottom, nRight-nLeft, nTop-nBottom);
-				glDrawElements(GL_TRIANGLES, (GLsizei)pcmd->ElemCount, sizeof(ImDrawIdx) == 2 ? GL_UNSIGNED_SHORT : GL_UNSIGNED_INT, idx_buffer);
-			}
-			idx_buffer += pcmd->ElemCount;
-		}
-	}
-
-	glMatrixMode(GL_PROJECTION);
-	glPopMatrix();
-	// Restore modified state
-	glDisableClientState(GL_VERTEX_ARRAY);
-	glDisableClientState(GL_COLOR_ARRAY);
-	glDisableClientState(GL_TEXTURE_COORD_ARRAY);
-	glBindTexture(GL_TEXTURE_2D, 0);
-	glPopAttrib();
-	glPopClientAttrib();
-#endif
 }
 
 void

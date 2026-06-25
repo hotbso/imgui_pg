@@ -4,6 +4,7 @@
  * Integration for dear imgui into X-Plane: ImGui Font Atlas
  *
  * Copyright (C) 2020, Christopher Collins
+ * Copyright (C) 2026, Holger Teutsch
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
