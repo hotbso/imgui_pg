@@ -10,6 +10,7 @@
 #include "XPLMDisplay.h"
 #include "XPLMPanelGraphics.h"
 
+#include "ui.h"
 #include "log_msg.h"
 
 const char* log_msg_prefix = "imgui_pg: ";
@@ -17,12 +18,10 @@ const char* log_msg_prefix = "imgui_pg: ";
 XPLMMenuID g_menu_id = nullptr;
 XPLMCommandRef g_open_cmd = nullptr;
 
+#if 0
 static constexpr int kWinWidth = 400;
 static constexpr int kWinHeight = 450;
 static constexpr int kWinPad = 75;
-//static constexpr int kWinX = 100;
-//static constexpr int kWinY = 100;
-//static constexpr float kFontSize = 14.0f;
 
 void DrawWindowCb(XPLMWindowID win_id, void* inRefcon) {
     //LogMsg("DrawWindowCb: win_id=%p, inRefcon=%p", win_id, inRefcon);
@@ -52,70 +51,14 @@ void DrawWindowCb(XPLMWindowID win_id, void* inRefcon) {
 
     XPLMLinesc(vertices, n_vertex);
 }
-
-int MouseCb(XPLMWindowID win_id, int x, int y, XPLMMouseStatus inMouse, void* inRefcon) {
-    //LogMsg("MouseCb: win_id=%p, x=%d, y=%d, inMouse=%d, inRefcon=%p", win_id, x, y, inMouse, inRefcon);
-    return 1;
-}
-
-int MouseWheelCb(XPLMWindowID win_id, int x, int y, int wheel, int clicks, void* inRefcon) {
-    //LogMsg("MouseWheelCb: win_id=%p, x=%d, y=%d, wheel=%d, clicks=%d, inRefcon=%p", win_id, x, y, wheel, clicks, inRefcon);
-    return 1;
-}
-
-XPLMCursorStatus CursorCb(XPLMWindowID win_id, int x, int y, void* inRefcon) {
-    //LogMsg("CursorCb: win_id=%p, x=%d, y=%d, inRefcon=%p", win_id, x, y, inRefcon);
-    return xplm_CursorDefault;
-}
-void KeyboardCb(XPLMWindowID win_id, char inKey, XPLMKeyFlags inFlags, char inVirtualKey, void* inRefcon, int losingFocus) {
-    LogMsg("KeyboardCb: win_id=%p, inKey=%c, inFlags=%d, inVirtualKey=%c, inRefcon=%p, losingFocus=%d", win_id, inKey, inFlags,
-           inVirtualKey, inRefcon, losingFocus);
-}
-
-
-static XPLMWindowID window_id = nullptr;
-
-
-static XPLMCreateWindow_t window_proto = {
-    sizeof(XPLMCreateWindow_t),
-    0, 0, 0, 0,  // left, top, right, bottom
-    true,                   // visible
-    DrawWindowCb,
-    MouseCb,
-    KeyboardCb,
-    CursorCb,
-    MouseWheelCb,
-    (void *)0x123abc,   // refcon
-    xplm_WindowDecorationRoundRectangle,
-    xplm_WindowLayerFloatingWindows,
-    MouseCb,  // right click
-    xplm_WindowContentTypePanelGraphics,
-    nullptr,  // browser navigation callback
-};
-
-void CreateUi() {
-    int sc_left, sc_top;
-    XPLMGetScreenBoundsGlobal(&sc_left, &sc_top, nullptr, nullptr);
-
-    int left = sc_left + kWinPad;
-    int right = left + kWinWidth;
-    int top = sc_top - kWinPad;
-    int bottom = top - kWinHeight;
-
-    window_proto.left = left;
-    window_proto.right = right;
-    window_proto.top = top;
-    window_proto.bottom = bottom;
-    window_id = XPLMCreateWindowEx(&window_proto);
-    LogMsg("CreateUi: window_id=%p, left=%d, right=%d, top=%d, bottom=%d", window_id, left, right, top, bottom);
-}
-
+#endif
 
 void OnOpen() {
-  XPLMDebugString("imgui_pg: open\n");
-  if (window_id == nullptr) {
-      CreateUi();
-  }
+    XPLMDebugString("imgui_pg: open");
+    if (ui == nullptr)
+        CreateUi();
+    else
+        ui->SetVisible(true);
 }
 
 void MenuHandler(void* /*in_menu_ref*/, void* in_item_ref) {
@@ -150,20 +93,22 @@ PLUGIN_API int XPluginStart(char* out_name, char* out_sig, char* out_desc) {
     g_menu_id = XPLMCreateMenu("imgui_pg", XPLMFindPluginsMenu(), plugins_menu_item, MenuHandler, nullptr);
     XPLMAppendMenuItem(g_menu_id, "Open", reinterpret_cast<void*>(static_cast<intptr_t>(0)), 1);
 
+    ImgWindowIni();
     return 1;
 }
 
 PLUGIN_API void XPluginStop() {
+    ui = nullptr;  // just in case ...
     XPLMUnregisterCommandHandler(g_open_cmd, OpenCmdHandler,
                                  /*in_before=*/1, /*in_refcon=*/nullptr);
     XPLMDestroyMenu(g_menu_id);
+    ImgWindowFini();
 }
 
-PLUGIN_API int XPluginEnable() {
-    LogMsg("XPluginEnable: window_id=%p\n", window_id);
-    return 1;
-}
+PLUGIN_API int XPluginEnable() { return 1; }
 
-PLUGIN_API void XPluginDisable() {}
+PLUGIN_API void XPluginDisable() {
+    ui = nullptr;  // just in case ...
+}
 
 PLUGIN_API void XPluginReceiveMessage(XPLMPluginID /*in_from*/, int /*in_msg*/, void* /*in_param*/) {}
