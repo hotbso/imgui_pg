@@ -10,16 +10,25 @@ if(NOT DEFINED XPLANE_SDK_PATH)
     set(XPLANE_SDK_PATH "${CMAKE_SOURCE_DIR}/SDK")
 endif()
 
-add_library(imgui_pg SHARED src/plugin.cpp)
+set(XPLIB "${CMAKE_CURRENT_SOURCE_DIR}/../xplib" CACHE PATH "xplib root")
+
+set(SOURCES
+    src/plugin.cpp
+    ${XPLIB}/log_msg.cpp
+)
+
+add_library(imgui_pg SHARED ${SOURCES}
+)
+
 set_target_properties(imgui_pg PROPERTIES PREFIX "" SUFFIX ".xpl")
 
 target_include_directories(imgui_pg PRIVATE
     "${XPLANE_SDK_PATH}/CHeaders/XPLM"
-    "${XPLANE_SDK_PATH}/CHeaders/Widgets"
+    "${XPLIB}"
 )
 
 target_compile_definitions(imgui_pg PRIVATE
-    XPLM200 XPLM210 XPLM300 XPLM301 XPLM400 XPLM410 XPLMPG1
+    XPLM200 XPLM210 XPLM300 XPLM301 XPLM400 XPLM410 XPLM420 XPLMPG1
 )
 
 target_compile_options(imgui_pg PRIVATE -O3)
