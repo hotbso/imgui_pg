@@ -275,7 +275,7 @@ protected:
 
 private:
     std::shared_ptr<ImgFontAtlas> mFontAtlas;
-    std::vector<XPLMDrawCall_t> draw_calls;
+    std::vector<XPLMDrawCall_t> mDrawCalls;
 
     static void DrawWindowCB(XPLMWindowID inWindowID, void *inRefcon);
 

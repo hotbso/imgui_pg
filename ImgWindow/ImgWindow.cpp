@@ -176,7 +176,7 @@ ImgWindow::ImgWindow(
         nullptr
 	};
 	mWindowID = XPLMCreateWindowEx(&windowParams);
-    draw_calls.reserve(1000); // reserve some space to avoid reallocations
+    mDrawCalls.reserve(100); // reserve some space to avoid reallocations
 }
 
 ImgWindow::~ImgWindow()
@@ -188,6 +188,7 @@ ImgWindow::~ImgWindow()
     }
 	ImGui::DestroyContext(mImGuiContext);
 	XPLMDestroyWindow(mWindowID);
+    LogMsg("mDrawCalls.capacity(): %zu", mDrawCalls.capacity());
 }
 
 void
@@ -273,6 +274,7 @@ void ImgWindow::RenderImGui(ImDrawData* draw_data) {
         mesh.indices = idx_buffer;
 
         int idx_ofs = 0;
+        mDrawCalls.clear();
         for (int cmd_i = 0; cmd_i < cmd_list->CmdBuffer.Size; cmd_i++) {
             const ImDrawCmd* pcmd = &cmd_list->CmdBuffer[cmd_i];
             XPLMDrawCall_t drc;
@@ -284,13 +286,11 @@ void ImgWindow::RenderImGui(ImDrawData* draw_data) {
             drc.idx_offset = idx_ofs;
             drc.element_count = pcmd->ElemCount;
             drc.vtx_offset = 0; // since we're using a single mesh for the entire draw list
-            draw_calls.push_back(drc);
+            mDrawCalls.push_back(drc);
             idx_ofs += pcmd->ElemCount;
         }
 
-        XPLMDrawCalls(&mesh, draw_calls.size(), draw_calls.data());
-        draw_calls.clear(); // clear for the next draw list
-        LogMsg("draw_calls.capacity() after processing draw list %d: %zu", n, draw_calls.capacity());
+        XPLMDrawCalls(&mesh, mDrawCalls.size(), mDrawCalls.data());
     }
 }
 
