@@ -16,60 +16,27 @@
 const char* log_msg_prefix = "imgui_pg: ";
 
 XPLMMenuID g_menu_id = nullptr;
-XPLMCommandRef g_open_cmd = nullptr;
+XPLMCommandRef toggle_cmdr = nullptr;
 
-#if 0
-static constexpr int kWinWidth = 400;
-static constexpr int kWinHeight = 450;
-static constexpr int kWinPad = 75;
-
-void DrawWindowCb(XPLMWindowID win_id, void* inRefcon) {
-    //LogMsg("DrawWindowCb: win_id=%p, inRefcon=%p", win_id, inRefcon);
-    uint32_t red = XPLMMakeColor(1.0f, 0, 0, 1.0f);
-    uint32_t green = XPLMMakeColor(0, 1.0f, 0, 1.0f);
-
-    XPLMVertexColor_t vertices[] = {
-        {0, 5, green},
-        {kWinWidth, 5, green},
-
-        {0, 0, red},
-        {kWinWidth, kWinHeight, red},
-
-        {0, kWinHeight, green},
-        {kWinWidth, 0, green},
-    };
-
-    int n_vertex = sizeof(vertices) / sizeof(vertices[0]);
-
-    int left, top;
-    XPLMGetWindowGeometry(win_id, &left, &top, nullptr, nullptr);
-    //LogMsg("DrawWindowCb: left=%d, top=%d", left, top);
-    for (auto& v : vertices) {
-        v.x += left;
-        v.y = top - v.y;
-    }
-
-    XPLMLinesc(vertices, n_vertex);
-}
-#endif
-
-void OnOpen() {
-    XPLMDebugString("imgui_pg: open");
+void ToggleUi() {
+    LogMsg("imgui_pg: toggle UI");
     if (ui == nullptr)
         CreateUi();
-    else
+    else if (!ui->GetVisible()) // was closed by user, so we can just show it again
         ui->SetVisible(true);
+    else
+        ui = nullptr;
 }
 
 void MenuHandler(void* /*in_menu_ref*/, void* in_item_ref) {
     if (reinterpret_cast<intptr_t>(in_item_ref) == 0) {
-        OnOpen();
+        ToggleUi();
     }
 }
 
-int OpenCmdHandler(XPLMCommandRef /*in_command*/, XPLMCommandPhase in_phase, void* /*in_refcon*/) {
+int ToggleUiCmdCb(XPLMCommandRef /*in_command*/, XPLMCommandPhase in_phase, void* /*in_refcon*/) {
     if (in_phase == xplm_CommandBegin) {
-        OnOpen();
+        ToggleUi();
     }
     return 1;  // Pass command to other handlers.
 }
@@ -85,13 +52,13 @@ PLUGIN_API int XPluginStart(char* out_name, char* out_sig, char* out_desc) {
     std::strncpy(out_sig, "hotbso.imgui_pg", kXplmStringMax);
     std::strncpy(out_desc, "imgui with XPDSK panel graphics", kXplmStringMax);
 
-    g_open_cmd = XPLMCreateCommand("imgui_pg/open", "Open imgui_pg");
-    XPLMRegisterCommandHandler(g_open_cmd, OpenCmdHandler,
+    toggle_cmdr = XPLMCreateCommand("imgui_pg/toggle_ui", "Toggle imgui_pg UI");
+    XPLMRegisterCommandHandler(toggle_cmdr, ToggleUiCmdCb,
                                /*in_before=*/1, /*in_refcon=*/nullptr);
 
     int plugins_menu_item = XPLMAppendMenuItem(XPLMFindPluginsMenu(), "imgui_pg", nullptr, 1);
     g_menu_id = XPLMCreateMenu("imgui_pg", XPLMFindPluginsMenu(), plugins_menu_item, MenuHandler, nullptr);
-    XPLMAppendMenuItem(g_menu_id, "Open", reinterpret_cast<void*>(static_cast<intptr_t>(0)), 1);
+    XPLMAppendMenuItem(g_menu_id, "Toggle UI", reinterpret_cast<void*>(static_cast<intptr_t>(0)), 1);
 
     ImgWindowIni();
     return 1;
@@ -99,10 +66,11 @@ PLUGIN_API int XPluginStart(char* out_name, char* out_sig, char* out_desc) {
 
 PLUGIN_API void XPluginStop() {
     ui = nullptr;  // just in case ...
-    XPLMUnregisterCommandHandler(g_open_cmd, OpenCmdHandler,
+    XPLMUnregisterCommandHandler(toggle_cmdr, ToggleUiCmdCb,
                                  /*in_before=*/1, /*in_refcon=*/nullptr);
     XPLMDestroyMenu(g_menu_id);
     ImgWindowFini();
+    LogMsg("imgui_pg: stopped");
 }
 
 PLUGIN_API int XPluginEnable() { return 1; }

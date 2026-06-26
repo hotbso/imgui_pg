@@ -36,6 +36,9 @@
 #include "ui.h"
 #include "log_msg.h"
 
+#include "IconsFontAwesome5.h"
+#include "fa-solid-900.inc"
+
 static constexpr int kWinWidth = 400;
 static constexpr int kWinHeight = 450;
 static constexpr int kWinPad = 75;
@@ -58,16 +61,13 @@ void CreateUi() {
 
 void ImgWindowIni() {
     LogMsg("Initializing Imgui Window...");
-    ImgWindow::sFontAtlas = std::make_shared<ImgFontAtlas>();
-
-    // load from X-Plane's default font directory
-    if (ImgWindow::sFontAtlas->AddFontFromFileTTF("./Resources/fonts/DejaVuSans.ttf", kFontSize) == nullptr) {
+    ImgWindow::Initialize();
+    ImGuiIO& io = ImGui::GetIO();
+    io.IniFilename = nullptr;  // strdup((user_cfg_dir + "imgui.ini").c_str());
+    if (io.Fonts->AddFontFromFileTTF("./Resources/fonts/DejaVuSans.ttf", kFontSize) == nullptr) {
         LogMsg("Failed to load font DejaVuSans from file, falling back to default font");
     }
 
-#if 0
-    // Now we merge some icons from the OpenFontsIcons font into the above font
-    // (see `imgui/docs/FONTS.txt`)
     ImFontConfig config;
     config.MergeMode = true;
 
@@ -80,28 +80,20 @@ void ImgWindowIni() {
     builder.BuildRanges(&icon_ranges);
 
     // Merge the icon font with the text font
-    ImgWindow::sFontAtlas->AddFontFromMemoryCompressedTTF(fa_solid_900_compressed_data,
-                                                          fa_solid_900_compressed_size,
-                                                          kFontSize,
-                                                          &config,
-                                                          icon_ranges.Data);
+    io.Fonts->AddFontFromMemoryCompressedTTF(fa_solid_900_compressed_data, fa_solid_900_compressed_size, kFontSize,
+                                             &config, icon_ranges.Data);
 
-#endif
     LogMsg("Imgui Window initialized");
 }
 
 void ImgWindowFini() {
-    ui = nullptr; // just in case ...
-    ImgWindow::sFontAtlas.reset();
+    ui = nullptr;  // just in case ...
+    ImgWindow::Finalize();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////
 Ui::Ui(int left, int top, int right, int bot)
     : ImgWindow(left, top, right, bot, xplm_WindowDecorationRoundRectangle, xplm_WindowLayerFloatingWindows) {
-
-    // is currently not really supported, hopefully with 12.5
-    ImGui::GetIO().IniFilename = nullptr; // strdup((user_cfg_dir + "imgui.ini").c_str());
-
     // Create a flight loop id, but don't schedule it yet
     XPLMCreateFlightLoop_t loop_params = {
         sizeof(loop_params),                      // structSize
@@ -123,6 +115,11 @@ Ui::~Ui() {
 }
 
 void Ui::BuildInterface() {
+    ImGui::TextUnformatted("Welcome to imgui_pg!");
+    ImGui::TextUnformatted("This is a simple plugin to demonstrate imgui usage in X-Plane with Panel Graphics.");
+    ImGui::TextUnformatted("imgui version: " IMGUI_VERSION);
+    ImGui::Separator();
+
     if (ImGui::TreeNode("Settings")) {
         //--------------------------------------------------
         ImGui::Spacing();
@@ -136,16 +133,31 @@ void Ui::BuildInterface() {
         ImGui::Spacing();
         ImGui::Separator();
         ImGui::TreePop();
-    } else {
-        ImGui::TextUnformatted("No settings available");
     }
+
+    if (ImGui::RadioButton("Test button", radio_status)) {
+        radio_status = !radio_status;
+    }
+    if (radio_status) {
+        ImGui::TextUnformatted("Radio button is ON ");
+        ImGui::SameLine();
+        ImGui::TextUnformatted((const char*)ICON_FA_CHECK);
+    } else {
+        ImGui::TextUnformatted("Radio button is OFF");
+    }
+
+    ImGui::PushFont(NULL, 24.0f);
+    ImGui::Text("Crisp dynamic 24px text!");
+    ImGui::PopFont();
+    ImGui::TextUnformatted("This text is rendered with the default font size.");
+    ImGui::TextUnformatted("Hello, world!");
 }
 
 // Delayed actions that require FlightLoop context
 float Ui::FlightLoopCb(float, float, int, void* inRefcon) {
     LogMsg("FlightLoopCb called with inRefcon=%p", inRefcon);
 
-    //Ui& ui = *reinterpret_cast<Ui*>(inRefcon);
+    // Ui& ui = *reinterpret_cast<Ui*>(inRefcon);
 
     return 0.0f;
 }

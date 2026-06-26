@@ -27,6 +27,7 @@
 // Our own class defining our own UI
 class Ui : public ImgWindow {
     XPLMFlightLoopID flt_id_ = nullptr;
+    bool radio_status = false;
 
     // Main function: creates the window's UI
     void BuildInterface() override;

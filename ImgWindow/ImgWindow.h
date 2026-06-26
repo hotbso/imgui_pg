@@ -47,42 +47,15 @@
 #include <imgui.h>
 #include <queue>
 
-#include "ImgFontAtlas.h"
-
 /** ImgWindow is a Window for creating dear imgui widgets within.
  *
- * There's a few traps to be aware of when using dear imgui with X-Plane:
  *
- * 1) The Dear ImGUI coordinate scheme is inverted in the Y axis vs the X-Plane
- *    (and OpenGL default) scheme. You must be careful if you're trying to
- *    directly manipulate positioning of widgets rather than letting imgui
- *    self-layout.  There are (private) functions in ImgWindow to do the
- *    coordinate mapping.
- *
- * 2) The Dear ImGUI rendering space is only as big as the window - this means
- *    popup elements cannot be larger than the parent window.  This was
- *    unavoidable on XP11 because of how popup windows work and the possibility
- *    for negative coordinates (which imgui doesn't like).
- *
- * 3) There is no way to detect if the window is hidden without a per-frame
- *    processing loop or similar.
- *
- * @note It should be possible to map globally on XP9 & XP10 letting you run
- *     popups as large as you need, or to use the ImGUI native titlebars instead
- *     of the XP10 ones - source for this may be provided later, but could also
- *     be trivially adapted from this one by adjusting the way the space is
- *     translated and mapped in the DrawWindowCB and constructor.
  */
 class
 ImgWindow {
 public:
-    /** sFontAtlas is the global shared font-atlas.
-     *
-     * If you want to share fonts between windows, this needs to be set before
-     * any dialogs are actually instantiated.  It will be automatically handed
-     * over to the contexts as they're created.
-     */
-    static std::shared_ptr<ImgFontAtlas> sFontAtlas;
+    static bool Initialize();   // first call, create context
+    static void Finalize();     // last call
 
     virtual ~ImgWindow();
 
@@ -274,8 +247,8 @@ protected:
     XPLMWindowID GetWindowId () const { return mWindowID; }
 
 private:
-    std::shared_ptr<ImgFontAtlas> mFontAtlas;
     std::vector<XPLMDrawCall_t> mDrawCalls;
+    static void UpdateTexture(ImTextureData* tex);
 
     static void DrawWindowCB(XPLMWindowID inWindowID, void *inRefcon);
 
@@ -327,22 +300,14 @@ private:
 
     void updateImgui();
 
-    void updateMatrices();
-
-    void boxelsToNative(int x, int y, int &outX, int &outY);
-
     void translateImguiToBoxel(float inX, float inY, int &outX, int &outY);
 
     void translateToImguiSpace(int inX, int inY, float &outX, float &outY);
 
-    float mModelView[16], mProjection[16];
-    int mViewport[4];
-
     std::string mWindowTitle;
 
     XPLMWindowID mWindowID;
-    ImGuiContext *mImGuiContext;
-    void* mFontTexture;
+    static ImGuiContext *gImGuiContext;
 
     int mTop;
     int mBottom;

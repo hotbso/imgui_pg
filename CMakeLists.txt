@@ -19,7 +19,6 @@ SET(IMGUI_SRCS
     ${CMAKE_SOURCE_DIR}/imgui/imgui_tables.cpp
     ${CMAKE_SOURCE_DIR}/imgui/misc/cpp/imgui_stdlib.cpp
     ${CMAKE_SOURCE_DIR}/ImgWindow/ImgWindow.cpp
-    ${CMAKE_SOURCE_DIR}/ImgWindow/ImgFontAtlas.cpp
 )
 
 set(SOURCES
