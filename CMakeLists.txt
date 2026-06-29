@@ -41,7 +41,7 @@ target_include_directories(imgui_pg PRIVATE
 )
 
 target_compile_definitions(imgui_pg PRIVATE
-    XPLM200 XPLM210 XPLM300 XPLM301 XPLM400 XPLM410 XPLM420 XPLMPG1
+    XPLM200 XPLM210 XPLM300 XPLM301 XPLM400 XPLM410 XPLM430 XPLM440 XPLMPG1
 )
 
 target_compile_options(imgui_pg PRIVATE -O3)

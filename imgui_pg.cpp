@@ -58,7 +58,7 @@ PLUGIN_API int XPluginStart(char* out_name, char* out_sig, char* out_desc) {
 
     int plugins_menu_item = XPLMAppendMenuItem(XPLMFindPluginsMenu(), "imgui_pg", nullptr, 1);
     g_menu_id = XPLMCreateMenu("imgui_pg", XPLMFindPluginsMenu(), plugins_menu_item, MenuHandler, nullptr);
-    XPLMAppendMenuItem(g_menu_id, "Toggle UI", reinterpret_cast<void*>(static_cast<intptr_t>(0)), 1);
+    XPLMAppendMenuItem(g_menu_id, "Toggle UI", nullptr, 1);
 
     ImgWindowIni();
     return 1;
