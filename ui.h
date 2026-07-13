@@ -27,7 +27,8 @@
 // Our own class defining our own UI
 class Ui : public ImgWindow {
     XPLMFlightLoopID flt_id_ = nullptr;
-    bool radio_status = false;
+    std::string pilot_id_ = "12345";
+    bool checkbox_state_ = 0;
 
     // Main function: creates the window's UI
     void BuildInterface() override;
@@ -45,6 +46,6 @@ class Ui : public ImgWindow {
 extern void ImgWindowIni();
 extern void ImgWindowFini();
 
-extern void CreateUi();
+extern void CreateUi(int delta, std::unique_ptr<ImgWindow>& ui);
 
-extern std::unique_ptr<ImgWindow> ui;
+extern std::unique_ptr<ImgWindow> ui, ui1;

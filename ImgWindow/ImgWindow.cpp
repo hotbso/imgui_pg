@@ -33,6 +33,12 @@
  * POSSIBILITY OF SUCH DAMAGE.
 */
 
+#if IBM
+#include <windows.h>
+#elif APL
+#include <Carbon/Carbon.h>
+#endif
+
 #include "ImgWindow.h"
 
 #include <XPLMDataAccess.h>
@@ -50,8 +56,6 @@ constexpr int WND_RESIZE_BOTTOM_WIDTH   = 15;
 
 static XPLMDataRef		gVrEnabledRef			= nullptr;
 static XPLMDataRef		gFrameRatePeriodRef     = nullptr;
-
-ImGuiContext *ImgWindow::gImGuiContext = nullptr;
 
 static ImGuiKey TranslateXPLMKeyToImGui(unsigned char inVirtualKey) {
     switch (inVirtualKey) {
@@ -112,9 +116,8 @@ ImgWindow::ImgWindow(
 	mPreferredLayer(layer),
     bHandleWndResize(xplm_WindowDecorationSelfDecoratedResizable == decoration)
 {
-    assert(gImGuiContext != nullptr);
-
-	ImGui::SetCurrentContext(gImGuiContext);
+    mImGuiContext = ImGui::CreateContext();
+	ImGui::SetCurrentContext(mImGuiContext);
 	XPLMCreateWindow_t	windowParams = {
 		sizeof(windowParams),
 		left,
@@ -134,14 +137,50 @@ ImgWindow::ImgWindow(
         xplm_WindowContentTypePanelGraphics,
         nullptr
 	};
-	mWindowID = XPLMCreateWindowEx(&windowParams);
+
+    mWindowID = XPLMCreateWindowEx(&windowParams);
     mDrawCalls.reserve(50); // reserve some space to avoid reallocations
+
+    mImGuiContext = ImGui::CreateContext();
+    ImGui::SetCurrentContext(mImGuiContext);
+    auto& io = ImGui::GetIO();
+    io.IniFilename = nullptr;       // is not compatible with imgWindow, disable imgui.ini file
+
+    // disable window rounding since we're not rendering the frame anyway.
+    auto& style = ImGui::GetStyle();
+    style.WindowRounding = 0;
+
+    // disable OSX-like keyboard behaviours always - we don't have the keymapping for it.
+    io.ConfigMacOSXBehaviors = false;
+
+    // try to inhibit a few resize/move behaviours that won't play nice with our window control.
+    io.ConfigWindowsResizeFromEdges = false;
+    io.ConfigWindowsMoveFromTitleBarOnly = true;
+
+    io.BackendFlags |=
+        ImGuiBackendFlags_RendererHasTextures;  // We can honor ImGuiPlatformIO::Textures[] requests during render.
 }
 
 ImgWindow::~ImgWindow()
 {
 	XPLMDestroyWindow(mWindowID);
     LogMsg("mDrawCalls.capacity(): %zu", mDrawCalls.capacity());
+
+    ImGui::SetCurrentContext(mImGuiContext);
+
+    LogMsg("ImgWindow::Finalize: destroying ImGui textures");
+    for (ImTextureData* tex : ImGui::GetPlatformIO().Textures)
+        if (tex->RefCount == 1) {
+            tex->SetStatus(ImTextureStatus_WantDestroy);
+            UpdateTexture(tex);
+        }
+    LogMsg("ImgWindow::Finalize: destroying ImGui context %p", (void*)mImGuiContext);
+    ImGui::DestroyContext(mImGuiContext);
+}
+
+ImGuiIO& ImgWindow::GetImGuiIO() {
+    ImGui::SetCurrentContext(mImGuiContext);
+    return ImGui::GetIO();
 }
 
 void
@@ -209,6 +248,7 @@ void ImgWindow::UpdateTexture(ImTextureData* tex) {
 void ImgWindow::RenderImGui(ImDrawData * draw_data) {
     // Avoid rendering when minimized, scale coordinates for retina displays (screen coordinates != framebuffer
     // coordinates)
+    ImGui::SetCurrentContext(mImGuiContext);
     ImGuiIO& io = ImGui::GetIO();
     if (io.DisplayFramebufferScale.x != 1.0 || io.DisplayFramebufferScale.y != 1.0) {
         draw_data->ScaleClipRects(io.DisplayFramebufferScale);
@@ -273,7 +313,7 @@ void ImgWindow::translateImguiToBoxel(float inX, float inY, int& outX, int& outY
 }
 
 void ImgWindow::updateImgui() {
-    ImGui::SetCurrentContext(gImGuiContext);
+    ImGui::SetCurrentContext(mImGuiContext);
     auto& io = ImGui::GetIO();
 
     // transfer the window geometry to ImGui
@@ -330,7 +370,7 @@ void ImgWindow::DrawWindowCB(XPLMWindowID /* inWindowID */, void* inRefcon) {
 
     thisWindow->updateImgui();
 
-    ImGui::SetCurrentContext(gImGuiContext);
+    ImGui::SetCurrentContext(thisWindow->mImGuiContext);
     ImGui::Render();
 
     thisWindow->RenderImGui(ImGui::GetDrawData());
@@ -348,12 +388,13 @@ void ImgWindow::DrawWindowCB(XPLMWindowID /* inWindowID */, void* inRefcon) {
 
 int ImgWindow::HandleMouseClickCB(XPLMWindowID /* inWindowID */, int x, int y, XPLMMouseStatus inMouse,
                                     void* inRefcon) {
+    LogMsg("ImgWindow::HandleMouseClickCB: x=%d, y=%d, inMouse=%d", x, y, (int)inMouse);
     auto* thisWindow = reinterpret_cast<ImgWindow*>(inRefcon);
     return thisWindow->HandleMouseClickGeneric(x, y, inMouse, 0);
 }
 
 int ImgWindow::HandleMouseClickGeneric(int x, int y, XPLMMouseStatus inMouse, int button) {
-    ImGui::SetCurrentContext(gImGuiContext);
+    ImGui::SetCurrentContext(mImGuiContext);
     ImGuiIO& io = ImGui::GetIO();
 
     // Tell ImGui the mous position relative to the window
@@ -364,6 +405,21 @@ int ImgWindow::HandleMouseClickGeneric(int x, int y, XPLMMouseStatus inMouse, in
     const int loc_y = int(outY);
     const int dx = x - lastMouseDragX;  // dragged how far since last down/drag event?
     const int dy = y - lastMouseDragY;
+
+    bool shift{}, ctrl{};
+
+#if IBM  // Windows
+    shift = (GetAsyncKeyState(VK_SHIFT) & 0x8000) != 0;
+    ctrl  = (GetAsyncKeyState(VK_CONTROL) & 0x8000) != 0;
+    //LogMsg("HandleMouseClickGeneric: x=%d, y=%d, inMouse=%d, button=%d, loc_x=%d, loc_y=%d, dx=%d, dy=%d, ShiftPressed=%d, CtrlPressed=%d",
+    //        x, y, (int)inMouse, button, loc_x, loc_y, dx, dy, shift, ctrl);
+#elif APL // macOS
+    UInt32 modifiers = GetCurrentKeyModifiers();
+    shift = (modifiers & shiftKey) != 0;
+    ctrl  = (modifiers & controlKey) != 0;
+#elif LIN
+    #warning "Linux: HandleMouseClickGeneric: Sorry, Shift/Ctrl detection not implemented, no multiselection possible!"
+#endif
 
     switch (inMouse) {
         case xplm_MouseDrag:
@@ -433,6 +489,11 @@ int ImgWindow::HandleMouseClickGeneric(int x, int y, XPLMMouseStatus inMouse, in
             break;
 
         case xplm_MouseDown:
+            if (ctrl)
+                io.AddKeyEvent(ImGuiMod_Ctrl, true);
+            if (shift)
+                io.AddKeyEvent(ImGuiMod_Shift, true);
+
             io.AddMouseButtonEvent(button, true);
 
             // Which part of the window would we drag, if any?
@@ -465,6 +526,8 @@ int ImgWindow::HandleMouseClickGeneric(int x, int y, XPLMMouseStatus inMouse, in
             io.AddMouseButtonEvent(button, false);
             lastMouseDragX = lastMouseDragY = -1;
             dragWhat.clear();
+            io.AddKeyEvent(ImGuiMod_Ctrl, false);
+            io.AddKeyEvent(ImGuiMod_Shift, false);
             break;
         default:
             // dunno!
@@ -479,7 +542,7 @@ void ImgWindow::HandleKeyFuncCB(XPLMWindowID /*inWindowID*/, char inKey, XPLMKey
     LogMsg("ImgWindow::HandleKeyFuncCB: inKey=%d, inFlags=%08x, inVirtualKey=%d, blosingFocus=%d", (unsigned)inKey, (unsigned)inFlags,
            (unsigned)inVirtualKey, blosingFocus);
     auto* thisWindow = reinterpret_cast<ImgWindow*>(inRefcon);
-    ImGui::SetCurrentContext(gImGuiContext);
+    ImGui::SetCurrentContext(thisWindow->mImGuiContext);
     ImGuiIO& io = ImGui::GetIO();
     if (io.WantCaptureKeyboard) {
         // Loosing focus? That's not exactly something ImGui allows us to do...
@@ -526,7 +589,7 @@ void ImgWindow::HandleKeyFuncCB(XPLMWindowID /*inWindowID*/, char inKey, XPLMKey
 int ImgWindow::HandleMouseWheelFuncCB(XPLMWindowID /*inWindowID*/, int x, int y, int wheel, int clicks,
                                         void* inRefcon) {
     auto* thisWindow = reinterpret_cast<ImgWindow*>(inRefcon);
-    ImGui::SetCurrentContext(gImGuiContext);
+    ImGui::SetCurrentContext(thisWindow->mImGuiContext);
     ImGuiIO& io = ImGui::GetIO();
 
     float outX, outY;
@@ -688,41 +751,9 @@ bool ImgWindow::Initialize() {
 
     gVrEnabledRef = XPLMFindDataRef("sim/graphics/VR/enabled");
     gFrameRatePeriodRef = XPLMFindDataRef("sim/operation/misc/frame_rate_period");
-
-    gImGuiContext = ImGui::CreateContext();
-    auto& io = ImGui::GetIO();
-
-    // disable window rounding since we're not rendering the frame anyway.
-    auto& style = ImGui::GetStyle();
-    style.WindowRounding = 0;
-
-    // disable OSX-like keyboard behaviours always - we don't have the keymapping for it.
-    io.ConfigMacOSXBehaviors = false;
-
-    // try to inhibit a few resize/move behaviours that won't play nice with our window control.
-    io.ConfigWindowsResizeFromEdges = false;
-    io.ConfigWindowsMoveFromTitleBarOnly = true;
-
-    io.BackendFlags |=
-        ImGuiBackendFlags_RendererHasTextures;  // We can honor ImGuiPlatformIO::Textures[] requests during render.
-
     return true;
 }
 
 void ImgWindow::Finalize() {
-    if (!init_done)
-        return;
-    init_done = false;
-
-    ImGui::SetCurrentContext(gImGuiContext);
-    LogMsg("ImgWindow::Finalize: destroying ImGui textures");
-    for (ImTextureData* tex : ImGui::GetPlatformIO().Textures)
-        if (tex->RefCount == 1) {
-            tex->SetStatus(ImTextureStatus_WantDestroy);
-            UpdateTexture(tex);
-        }
-    LogMsg("ImgWindow::Finalize: destroying ImGui context %p", (void*)gImGuiContext);
-    ImGui::DestroyContext(gImGuiContext);
-    LogMsg("ImgWindow::Finalize: ImGui context destroyed");
-    gImGuiContext = nullptr;
+    // nothing to do for now
 }

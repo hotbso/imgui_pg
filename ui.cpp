@@ -36,19 +36,17 @@
 #include "ui.h"
 #include "log_msg.h"
 
-#include "IconsFontAwesome5.h"
 #include "fa-solid-900.inc"
+#include "IconsFontAwesome5.h"
 
 static constexpr int kWinWidth = 400;
 static constexpr int kWinHeight = 450;
 static constexpr int kWinPad = 75;
 static constexpr float kFontSize = 14.0f;
 
-std::unique_ptr<ImgWindow> ui;
+std::unique_ptr<ImgWindow> ui, ui1;
 
-std::string pilot_id = "12345";
-
-void CreateUi() {
+void CreateUi(int delta, std::unique_ptr<ImgWindow>& ui) {
     int sc_left, sc_top;
     XPLMGetScreenBoundsGlobal(&sc_left, &sc_top, nullptr, nullptr);
 
@@ -56,44 +54,51 @@ void CreateUi() {
     int right = left + kWinWidth;
     int top = sc_top - kWinPad;
     int bottom = top - kWinHeight;
-    ui = std::make_unique<Ui>(left, top, right, bottom);
+    ui = std::make_unique<Ui>(left + delta, top, right + delta, bottom);
 }
+
 
 void ImgWindowIni() {
     LogMsg("Initializing Imgui Window...");
-    ImgWindow::Initialize();
-    ImGuiIO& io = ImGui::GetIO();
-    io.IniFilename = nullptr;  // strdup((user_cfg_dir + "imgui.ini").c_str());
+}
+
+void ImgWindowFini() {
+    ui = nullptr; // just in case ...
+    ui1 = nullptr;
+    LogMsg("Imgui Window finalized");
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////
+Ui::Ui(int left, int top, int right, int bot)
+    : ImgWindow(left, top, right, bot, xplm_WindowDecorationRoundRectangle, xplm_WindowLayerFloatingWindows) {
+
+    auto& io = GetImGuiIO();
+
+    // load from X-Plane's default font directory
     if (io.Fonts->AddFontFromFileTTF("./Resources/fonts/DejaVuSans.ttf", kFontSize) == nullptr) {
         LogMsg("Failed to load font DejaVuSans from file, falling back to default font");
     }
 
+    // Now we merge some icons from the OpenFontsIcons font into the above font
+    // (see `imgui/docs/FONTS.txt`)
     ImFontConfig config;
     config.MergeMode = true;
 
     // We only read very selectively the individual glyphs we are actually using
     // to safe on texture space
-    static ImVector<ImWchar> icon_ranges;
+    ImVector<ImWchar> icon_ranges;
     ImFontGlyphRangesBuilder builder;
     // Add all icons that are actually used (they concatenate into one string)
     builder.AddText((const char*)ICON_FA_CHECK);
     builder.BuildRanges(&icon_ranges);
 
     // Merge the icon font with the text font
-    io.Fonts->AddFontFromMemoryCompressedTTF(fa_solid_900_compressed_data, fa_solid_900_compressed_size, kFontSize,
-                                             &config, icon_ranges.Data);
+    io.Fonts->AddFontFromMemoryCompressedTTF(fa_solid_900_compressed_data,
+                                                          fa_solid_900_compressed_size,
+                                                          kFontSize,
+                                                          &config,
+                                                          icon_ranges.Data);
 
-    LogMsg("Imgui Window initialized");
-}
-
-void ImgWindowFini() {
-    ui = nullptr;  // just in case ...
-    ImgWindow::Finalize();
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////
-Ui::Ui(int left, int top, int right, int bot)
-    : ImgWindow(left, top, right, bot, xplm_WindowDecorationRoundRectangle, xplm_WindowLayerFloatingWindows) {
     // Create a flight loop id, but don't schedule it yet
     XPLMCreateFlightLoop_t loop_params = {
         sizeof(loop_params),                      // structSize
@@ -115,11 +120,6 @@ Ui::~Ui() {
 }
 
 void Ui::BuildInterface() {
-    ImGui::TextUnformatted("Welcome to imgui_pg!");
-    ImGui::TextUnformatted("This is a simple plugin to demonstrate imgui usage in X-Plane with Panel Graphics.");
-    ImGui::TextUnformatted("imgui version: " IMGUI_VERSION);
-    ImGui::Separator();
-
     if (ImGui::TreeNode("Settings")) {
         //--------------------------------------------------
         ImGui::Spacing();
@@ -127,37 +127,24 @@ void Ui::BuildInterface() {
         ImGui::AlignTextToFramePadding();
         ImGui::TextUnformatted("Pilot ID:");
         ImGui::SameLine();
-        if (ImGui::InputText("##pilot_id", &pilot_id, ImGuiInputTextFlags_EnterReturnsTrue)) {
-            LogMsg("Pilot ID set to '%s'", pilot_id.c_str());
+        if (ImGui::InputText("##pilot_id_", &pilot_id_, ImGuiInputTextFlags_EnterReturnsTrue)) {
+            LogMsg("Pilot ID set to '%s'", pilot_id_.c_str());
         }
         ImGui::Spacing();
         ImGui::Separator();
         ImGui::TreePop();
-    }
-
-    if (ImGui::RadioButton("Test button", radio_status)) {
-        radio_status = !radio_status;
-    }
-    if (radio_status) {
-        ImGui::TextUnformatted("Radio button is ON ");
-        ImGui::SameLine();
-        ImGui::TextUnformatted((const char*)ICON_FA_CHECK);
+        ImGui::Checkbox("Enable feature X", &checkbox_state_);
+        ImGui::Text("Checkbox state: %d", checkbox_state_);
     } else {
-        ImGui::TextUnformatted("Radio button is OFF");
+        ImGui::TextUnformatted("No settings available");
     }
-
-    ImGui::PushFont(NULL, 24.0f);
-    ImGui::Text("Crisp dynamic 24px text!");
-    ImGui::PopFont();
-    ImGui::TextUnformatted("This text is rendered with the default font size.");
-    ImGui::TextUnformatted("Hello, world!");
 }
 
 // Delayed actions that require FlightLoop context
 float Ui::FlightLoopCb(float, float, int, void* inRefcon) {
     LogMsg("FlightLoopCb called with inRefcon=%p", inRefcon);
 
-    // Ui& ui = *reinterpret_cast<Ui*>(inRefcon);
+    //Ui& ui = *reinterpret_cast<Ui*>(inRefcon);
 
     return 0.0f;
 }

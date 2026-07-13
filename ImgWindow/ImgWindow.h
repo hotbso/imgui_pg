@@ -246,6 +246,8 @@ protected:
     /** Returns X-Plane's internal Window id */
     XPLMWindowID GetWindowId () const { return mWindowID; }
 
+    ImGuiIO& GetImGuiIO();
+
 private:
     std::vector<XPLMDrawCall_t> mDrawCalls;
     static void UpdateTexture(ImTextureData* tex);
@@ -307,7 +309,7 @@ private:
     std::string mWindowTitle;
 
     XPLMWindowID mWindowID;
-    static ImGuiContext *gImGuiContext;
+    ImGuiContext *mImGuiContext;
 
     int mTop;
     int mBottom;
