@@ -75,12 +75,6 @@ static ImGuiKey TranslateXPLMKeyToImGui(unsigned char inVirtualKey) {
         case XPLM_VK_RETURN: return ImGuiKey_Enter;
         case XPLM_VK_ESCAPE: return ImGuiKey_Escape;
         case XPLM_VK_ENTER: return ImGuiKey_KeypadEnter;
-        case XPLM_VK_A: return ImGuiKey_A;
-        case XPLM_VK_C: return ImGuiKey_C;
-        case XPLM_VK_V: return ImGuiKey_V;
-        case XPLM_VK_X: return ImGuiKey_X;
-        case XPLM_VK_Y: return ImGuiKey_Y;
-        case XPLM_VK_Z: return ImGuiKey_Z;
         case XPLM_VK_NUMPAD0: return ImGuiKey_Keypad0;
         case XPLM_VK_NUMPAD1: return ImGuiKey_Keypad1;
         case XPLM_VK_NUMPAD2: return ImGuiKey_Keypad2;
@@ -91,6 +85,14 @@ static ImGuiKey TranslateXPLMKeyToImGui(unsigned char inVirtualKey) {
         case XPLM_VK_NUMPAD7: return ImGuiKey_Keypad7;
         case XPLM_VK_NUMPAD8: return ImGuiKey_Keypad8;
         case XPLM_VK_NUMPAD9: return ImGuiKey_Keypad9;
+
+        // these are used to generate events like Ctrl-C, Ctrl-V, Ctrl-X, Ctrl-Z, etc. in the X-Plane key handler
+        case XPLM_VK_A: return ImGuiKey_A;
+        case XPLM_VK_C: return ImGuiKey_C;
+        case XPLM_VK_V: return ImGuiKey_V;
+        case XPLM_VK_X: return ImGuiKey_X;
+        case XPLM_VK_Y: return ImGuiKey_Y;
+        case XPLM_VK_Z: return ImGuiKey_Z;
         case XPLM_VK_0: return ImGuiKey_0;
         case XPLM_VK_1: return ImGuiKey_1;
         case XPLM_VK_2: return ImGuiKey_2;
@@ -566,21 +568,18 @@ void ImgWindow::HandleKeyFuncCB(XPLMWindowID /*inWindowID*/, char inKey, XPLMKey
             if (inVirtualKey == XPLM_VK_BACK && !(inFlags & xplm_DownFlag)) {
                 thisWindow->bResetBackspace = true;  // have it reset only later in DrawWindowCB
             } else {
+                io.AddKeyEvent(ImGuiMod_Shift, (inFlags & xplm_ShiftFlag) == xplm_ShiftFlag);
+                io.AddKeyEvent(ImGuiMod_Alt, (inFlags & xplm_OptionAltFlag) == xplm_OptionAltFlag);
+                io.AddKeyEvent(ImGuiMod_Ctrl, (inFlags & xplm_ControlFlag) == xplm_ControlFlag);
+
                 // in all normal cases: save the up/down flag as it comes from XP
                 ImGuiKey key = TranslateXPLMKeyToImGui(static_cast<unsigned char>(inVirtualKey));
-                if (key != ImGuiKey_None) {
+                if (key != ImGuiKey_None)
                     io.AddKeyEvent(key, (inFlags & xplm_DownFlag) == xplm_DownFlag);
-                }
-            }
-            io.AddKeyEvent(ImGuiMod_Shift, (inFlags & xplm_ShiftFlag) == xplm_ShiftFlag);
-            io.AddKeyEvent(ImGuiMod_Alt, (inFlags & xplm_OptionAltFlag) == xplm_OptionAltFlag);
-            io.AddKeyEvent(ImGuiMod_Ctrl, (inFlags & xplm_ControlFlag) == xplm_ControlFlag);
 
-            // inKey will only includes printable characters,
-            // but also those created with key combinations like @ or {}
-            if ((inFlags & xplm_DownFlag) == xplm_DownFlag && inKey > '\0') {
-                char smallStr[2] = {inKey, 0};
-                io.AddInputCharactersUTF8(smallStr);
+                // inKey will only include ASCII printable characters,
+                if ((inFlags & xplm_DownFlag) == xplm_DownFlag && inKey > '\0')
+                    io.AddInputCharacter(inKey);
             }
         }
     }

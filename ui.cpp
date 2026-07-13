@@ -71,7 +71,6 @@ void ImgWindowFini() {
 ///////////////////////////////////////////////////////////////////////////////////////////
 Ui::Ui(int left, int top, int right, int bot)
     : ImgWindow(left, top, right, bot, xplm_WindowDecorationRoundRectangle, xplm_WindowLayerFloatingWindows) {
-
     auto& io = GetImGuiIO();
 
     // load from X-Plane's default font directory
