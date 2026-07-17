@@ -40,6 +40,7 @@
 #endif
 
 #include "ImgWindow.h"
+#include "imgui_internal.h"
 
 #include <XPLMDataAccess.h>
 #include <XPLMDisplay.h>
@@ -112,6 +113,7 @@ ImgWindow::ImgWindow(
 	int top,
 	int right,
 	int bottom,
+    ImFontAtlas* shared_font_atlas,
 	XPLMWindowDecoration decoration,
 	XPLMWindowLayer layer) :
     mFirstRender(true),
@@ -143,7 +145,8 @@ ImgWindow::ImgWindow(
     mWindowID = XPLMCreateWindowEx(&windowParams);
     mDrawCalls.reserve(50); // reserve some space to avoid reallocations
 
-    mImGuiContext = ImGui::CreateContext();
+    mSharedFontAtlas = shared_font_atlas;
+    mImGuiContext = ImGui::CreateContext(mSharedFontAtlas);
     ImGui::SetCurrentContext(mImGuiContext);
     auto& io = ImGui::GetIO();
     io.IniFilename = nullptr;       // is not compatible with imgWindow, disable imgui.ini file
@@ -315,6 +318,15 @@ void ImgWindow::translateImguiToBoxel(float inX, float inY, int& outX, int& outY
 }
 
 void ImgWindow::updateImgui() {
+    // if we use a shared font atlas, we need to update the textures before each frame.
+    if (mSharedFontAtlas) {
+        ImGuiContext* ctx = mSharedFontAtlas->OwnerContext;
+        ctx->FrameCount++;
+        ImGui::SetCurrentContext(ctx);
+        //ImGuiIO& io = ImGui::GetIO();
+        ImFontAtlasUpdateNewFrame(mSharedFontAtlas, ctx->FrameCount, true);
+    }
+
     ImGui::SetCurrentContext(mImGuiContext);
     auto& io = ImGui::GetIO();
 
@@ -390,7 +402,6 @@ void ImgWindow::DrawWindowCB(XPLMWindowID /* inWindowID */, void* inRefcon) {
 
 int ImgWindow::HandleMouseClickCB(XPLMWindowID /* inWindowID */, int x, int y, XPLMMouseStatus inMouse,
                                     void* inRefcon) {
-    LogMsg("ImgWindow::HandleMouseClickCB: x=%d, y=%d, inMouse=%d", x, y, (int)inMouse);
     auto* thisWindow = reinterpret_cast<ImgWindow*>(inRefcon);
     return thisWindow->HandleMouseClickGeneric(x, y, inMouse, 0);
 }
@@ -754,5 +765,15 @@ bool ImgWindow::Initialize() {
 }
 
 void ImgWindow::Finalize() {
+#if 0
+    LogMsg("ImgWindow::Finalize: destroying ImGui textures");
+    for (ImTextureData* tex : ImGui::GetPlatformIO().Textures)
+        if (tex->RefCount == 1) {
+            tex->SetStatus(ImTextureStatus_WantDestroy);
+            UpdateTexture(tex);
+        }
+    LogMsg("ImgWindow::Finalize: destroying ImGui context %p", (void*)mImGuiContext);
+    ImGui::DestroyContext(mImGuiContext);
+#endif
     // nothing to do for now
 }

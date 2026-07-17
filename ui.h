@@ -29,6 +29,7 @@ class Ui : public ImgWindow {
     XPLMFlightLoopID flt_id_ = nullptr;
     std::string pilot_id_ = "12345";
     bool checkbox_state_ = 0;
+    int font_slider_ = 14;
 
     // Main function: creates the window's UI
     void BuildInterface() override;

@@ -44,6 +44,8 @@ static constexpr int kWinHeight = 450;
 static constexpr int kWinPad = 75;
 static constexpr float kFontSize = 14.0f;
 
+static ImFontAtlas* shared_font_atlas = nullptr;
+static ImGuiContext* global_context;
 std::unique_ptr<ImgWindow> ui, ui1;
 
 void CreateUi(int delta, std::unique_ptr<ImgWindow>& ui) {
@@ -60,18 +62,12 @@ void CreateUi(int delta, std::unique_ptr<ImgWindow>& ui) {
 
 void ImgWindowIni() {
     LogMsg("Initializing Imgui Window...");
-}
-
-void ImgWindowFini() {
-    ui = nullptr; // just in case ...
-    ui1 = nullptr;
-    LogMsg("Imgui Window finalized");
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////
-Ui::Ui(int left, int top, int right, int bot)
-    : ImgWindow(left, top, right, bot, xplm_WindowDecorationRoundRectangle, xplm_WindowLayerFloatingWindows) {
-    auto& io = GetImGuiIO();
+    global_context = ImGui::CreateContext();
+    ImGui::SetCurrentContext(global_context);
+    auto& io = ImGui::GetIO();
+    io.BackendFlags |=
+        ImGuiBackendFlags_RendererHasTextures;  // We can honor ImGuiPlatformIO::Textures[] requests during render.
+    shared_font_atlas = io.Fonts;
 
     // load from X-Plane's default font directory
     if (io.Fonts->AddFontFromFileTTF("./Resources/fonts/DejaVuSans.ttf", kFontSize) == nullptr) {
@@ -97,7 +93,22 @@ Ui::Ui(int left, int top, int right, int bot)
                                                           kFontSize,
                                                           &config,
                                                           icon_ranges.Data);
+}
 
+void ImgWindowFini() {
+    ui = nullptr; // just in case ...
+    ui1 = nullptr;
+
+    assert(global_context);
+    ImGui::DestroyContext(global_context);
+    global_context = nullptr;
+    shared_font_atlas = nullptr;
+    LogMsg("Imgui Window finalized");
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////
+Ui::Ui(int left, int top, int right, int bot)
+    : ImgWindow(left, top, right, bot, shared_font_atlas) {
     // Create a flight loop id, but don't schedule it yet
     XPLMCreateFlightLoop_t loop_params = {
         sizeof(loop_params),                      // structSize
@@ -137,6 +148,14 @@ void Ui::BuildInterface() {
     } else {
         ImGui::TextUnformatted("No settings available");
     }
+
+    if (ImGui::SliderInt("Font size", &font_slider_, 8, 32)) {
+        LogMsg("Font size set to %d", font_slider_);
+    }
+
+    ImGui::PushFont(NULL, static_cast<float>(font_slider_));
+    ImGui::TextUnformatted("This text is displayed in the selected font size.");
+    ImGui::PopFont();
 }
 
 // Delayed actions that require FlightLoop context

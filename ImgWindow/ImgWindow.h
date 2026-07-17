@@ -188,6 +188,7 @@ protected:
         int top,
         int right,
         int bottom,
+        ImFontAtlas* shared_font_atlas = nullptr,
         XPLMWindowDecoration decoration = xplm_WindowDecorationRoundRectangle,
         XPLMWindowLayer layer = xplm_WindowLayerFloatingWindows);
 
@@ -249,6 +250,7 @@ protected:
     ImGuiIO& GetImGuiIO();
 
 private:
+    ImFontAtlas* mSharedFontAtlas;
     std::vector<XPLMDrawCall_t> mDrawCalls;
     static void UpdateTexture(ImTextureData* tex);
 
