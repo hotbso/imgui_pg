@@ -33,9 +33,7 @@
 // POSSIBILITY OF SUCH DAMAGE.
 //
 
-#ifndef IMGWINDOW_H
-#define IMGWINDOW_H
-
+#pragma once
 #include <climits>
 #include <string>
 #include <memory>
@@ -47,189 +45,152 @@
 #include <imgui.h>
 #include <queue>
 
-class
-ImgWindow {
-public:
+class ImgWindow {
+   public:
     static bool Initialize();
     static void Finalize();
 
     virtual ~ImgWindow();
 
-    void GetWindowGeometry (int& left, int& top, int& right, int& bottom) const;
+    void GetWindowGeometry(int& left, int& top, int& right, int& bottom) const;
 
-    void SetWindowGeometry (int left, int top, int right, int bottom);
+    void SetWindowGeometry(int left, int top, int right, int bottom);
 
-    void GetWindowGeometryOS (int& left, int& top, int& right, int& bottom) const;
+    void GetWindowGeometryOS(int& left, int& top, int& right, int& bottom) const;
 
-    void SetWindowGeometryOS (int left, int top, int right, int bottom);
+    void SetWindowGeometryOS(int left, int top, int right, int bottom);
 
-    void GetWindowGeometryVR (int& width, int& height) const;
+    void GetWindowGeometryVR(int& width, int& height) const;
 
-    void SetWindowGeometryVR (int width, int height);
+    void SetWindowGeometryVR(int width, int height);
 
-    void GetCurrentWindowGeometry (int& left, int& top, int& right, int& bottom) const;
+    void GetCurrentWindowGeometry(int& left, int& top, int& right, int& bottom) const;
 
-    void SetWindowResizingLimits (int minW, int minH, int maxW, int maxH);
+    void SetWindowResizingLimits(int minW, int minH, int maxW, int maxH);
 
     virtual void SetVisible(bool inIsVisible);
 
     bool GetVisible() const;
 
-    bool IsPoppedOut () const;
+    bool IsPoppedOut() const;
 
-    bool IsInVR () const;
+    bool IsInVR() const;
 
-    bool IsInsideSim () const;
+    bool IsInsideSim() const;
 
-    void SetWindowPositioningMode (XPLMWindowPositioningMode inPosMode,
-                                   int                       inMonitorIdx = -1);
+    void SetWindowPositioningMode(XPLMWindowPositioningMode inPosMode, int inMonitorIdx = -1);
 
-    void BringWindowToFront ();
+    void BringWindowToFront();
 
-    bool IsWindowInFront () const;
+    bool IsWindowInFront() const;
 
-    void SetWindowDragArea (int left=0, int top=0, int right=INT_MAX, int bottom=INT_MAX);
+    void SetWindowDragArea(int left = 0, int top = 0, int right = INT_MAX, int bottom = INT_MAX);
 
-    void ClearWindowDragArea ();
+    void ClearWindowDragArea();
 
-    bool HasWindowDragArea (int* pL = nullptr, int* pT = nullptr,
-                            int* pR = nullptr, int* pB = nullptr) const;
+    bool HasWindowDragArea(int* pL = nullptr, int* pT = nullptr, int* pR = nullptr, int* pB = nullptr) const;
 
-    bool IsInsideWindowDragArea (int x, int y) const;
+    bool IsInsideWindowDragArea(int x, int y) const;
 
-protected:
+   protected:
+    bool first_render_;
 
-    bool mFirstRender;
+    ImgWindow(int left, int top, int right, int bottom, ImFontAtlas* shared_font_atlas = nullptr,
+              XPLMWindowDecoration decoration = xplm_WindowDecorationRoundRectangle,
+              XPLMWindowLayer layer = xplm_WindowLayerFloatingWindows);
 
-    ImgWindow(
-        int left,
-        int top,
-        int right,
-        int bottom,
-        ImFontAtlas* shared_font_atlas = nullptr,
-        XPLMWindowDecoration decoration = xplm_WindowDecorationRoundRectangle,
-        XPLMWindowLayer layer = xplm_WindowLayerFloatingWindows);
+    ImgWindow(const ImgWindow&) = delete;
+    ImgWindow& operator=(const ImgWindow&) = delete;
 
-    ImgWindow (const ImgWindow&) = delete;
-    ImgWindow& operator = (const ImgWindow&) = delete;
+    void SetWindowTitle(const std::string& title);
 
-    void SetWindowTitle(const std::string &title);
+    void MoveForVR();
 
-    void moveForVR();
-
-    virtual ImGuiWindowFlags_ beforeBegin() { return ImGuiWindowFlags_None; }
+    virtual ImGuiWindowFlags_ BeforeBegin() { return ImGuiWindowFlags_None; }
 
     virtual void BuildInterface() = 0;
 
-    virtual void afterRendering() {}
+    virtual void AfterRendering() {}
 
-    virtual bool onShow();
+    virtual bool OnShow();
 
     void SafeDelete();
 
-    XPLMWindowID GetWindowId () const { return mWindowID; }
+    XPLMWindowID GetWindowId() const { return window_id_; }
 
     ImGuiIO& GetImGuiIO();
 
-private:
-    ImFontAtlas* mSharedFontAtlas;
-    std::vector<XPLMDrawCall_t> mDrawCalls;
+   private:
+    ImFontAtlas* shared_font_atlas_;
+    std::vector<XPLMDrawCall_t> draw_calls_;
     static void UpdateTexture(ImTextureData* tex);
 
-    static void DrawWindowCB(XPLMWindowID inWindowID, void *inRefcon);
+    static void DrawWindowCB(XPLMWindowID inWindowID, void* inRefcon);
 
-    static int HandleMouseClickCB(
-        XPLMWindowID inWindowID,
-        int x, int y,
-        XPLMMouseStatus inMouse,
-        void *inRefcon);
+    static int HandleMouseClickCB(XPLMWindowID inWindowID, int x, int y, XPLMMouseStatus inMouse, void* inRefcon);
 
-    static void HandleKeyFuncCB(
-        XPLMWindowID inWindowID,
-        char inKey,
-        XPLMKeyFlags inFlags,
-        char inVirtualKey,
-        void *inRefcon,
-        int losingFocus);
+    static void HandleKeyFuncCB(XPLMWindowID inWindowID, char inKey, XPLMKeyFlags inFlags, char inVirtualKey,
+                                void* inRefcon, int losingFocus);
 
-    static XPLMCursorStatus HandleCursorFuncCB(
-        XPLMWindowID inWindowID,
-        int x, int y,
-        void *inRefcon);
+    static XPLMCursorStatus HandleCursorFuncCB(XPLMWindowID inWindowID, int x, int y, void* inRefcon);
 
-    static int HandleMouseWheelFuncCB(
-        XPLMWindowID inWindowID,
-        int x, int y,
-        int wheel,
-        int clicks,
-        void *inRefcon);
+    static int HandleMouseWheelFuncCB(XPLMWindowID inWindowID, int x, int y, int wheel, int clicks, void* inRefcon);
 
-    static int HandleRightClickFuncCB(
-        XPLMWindowID inWindowID,
-        int x, int y,
-        XPLMMouseStatus inMouse,
-        void *inRefcon);
+    static int HandleRightClickFuncCB(XPLMWindowID inWindowID, int x, int y, XPLMMouseStatus inMouse, void* inRefcon);
 
-    static float SelfDestructCallback(float inElapsedSinceLastCall,
-                                      float inElapsedTimeSinceLastFlightLoop,
-                                      int inCounter,
-                                      void *inRefcon);
-    static std::queue<ImgWindow *>  sPendingDestruction;
-    static XPLMFlightLoopID         sSelfDestructHandler;
+    static float SelfDestructCallback(float inElapsedSinceLastCall, float inElapsedTimeSinceLastFlightLoop,
+                                      int inCounter, void* inRefcon);
+    static std::queue<ImgWindow*> pending_destruction_;
+    static XPLMFlightLoopID self_destruct_handler_;
 
-    int HandleMouseClickGeneric(
-        int x, int y,
-        XPLMMouseStatus inMouse,
-        int button = 0);
+    int HandleMouseClickGeneric(int x, int y, XPLMMouseStatus inMouse, int button = 0);
 
-    void RenderImGui(ImDrawData *draw_data);
+    void RenderImGui(ImDrawData* draw_data);
 
-    void updateImgui();
+    void UpdateImgui();
 
-    void translateImguiToBoxel(float inX, float inY, int &outX, int &outY);
+    void TranslateImguiToBoxel(float inX, float inY, int& outX, int& outY);
 
-    void translateToImguiSpace(int inX, int inY, float &outX, float &outY);
+    void TranslateToImguiSpace(int inX, int inY, float& outX, float& outY);
 
-    std::string mWindowTitle;
+    std::string window_title_;
 
-    XPLMWindowID mWindowID;
-    ImGuiContext *mImGuiContext;
+    XPLMWindowID window_id_;
+    ImGuiContext* imgui_context_;
 
-    int mTop;
-    int mBottom;
-    int mLeft;
-    int mRight;
+    int top_;
+    int bottom_;
+    int left_;
+    int right_;
 
-    XPLMWindowLayer mPreferredLayer;
+    XPLMWindowLayer preferred_layer_;
 
-    bool bResetBackspace = false;
+    bool reset_backspace_ = false;
 
-    const bool bHandleWndResize;
+    const bool handle_wnd_resize_;
 
-    int minWidth    = 100;
-    int minHeight   = 100;
-    int maxWidth    = INT_MAX;
-    int maxHeight   = INT_MAX;
+    int min_width_ = 100;
+    int min_height_ = 100;
+    int max_width_ = INT_MAX;
+    int max_height_ = INT_MAX;
 
-    int dragLeft    = -1;
-    int dragTop     = -1;
-    int dragRight   = -1;
-    int dragBottom  = -1;
+    int drag_left_ = -1;
+    int drag_top_ = -1;
+    int drag_right_ = -1;
+    int drag_bottom_ = -1;
 
-    int lastMouseDragX  = -1;
-    int lastMouseDragY  = -1;
+    int last_mouse_drag_x_ = -1;
+    int last_mouse_drag_y_ = -1;
 
     struct DragTy {
-        bool wnd    : 1;
-        bool left   : 1;
-        bool top    : 1;
-        bool right  : 1;
+        bool wnd : 1;
+        bool left : 1;
+        bool top : 1;
+        bool right : 1;
         bool bottom : 1;
 
-        DragTy () { clear(); }
-        void clear () { wnd = left = top = right = bottom = false; }
+        DragTy() { clear(); }
+        void clear() { wnd = left = top = right = bottom = false; }
         operator bool() const { return wnd || left || top || right || bottom; }
-    } dragWhat;
+    } drag_what_;
 };
-
-#endif
