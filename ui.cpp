@@ -62,7 +62,7 @@ void CreateUi(int delta, std::unique_ptr<ImgWindow>& ui) {
 void UiLoadFonts() {
     ImFontAtlas* atlas = ImgWindow::GetSharedFontAtlas();
     if (!atlas) {
-        LogMsg("ImgWindowLoadFonts: shared font atlas is not initialized");
+        LogMsg("UiLoadFonts: shared font atlas is not initialized");
         return;
     }
 
@@ -89,8 +89,8 @@ void UiFini() {
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-Ui::Ui(int left, int top, int right, int bot)
-    : ImgWindow(left, top, right, bot) {
+Ui::Ui(int left, int top, int right, int bottom)
+    : ImgWindow(left, top, right, bottom) {
     // Create a flight loop id, but don't schedule it yet
     XPLMCreateFlightLoop_t loop_params = {
         sizeof(loop_params),                      // structSize

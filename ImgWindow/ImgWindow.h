@@ -54,43 +54,27 @@ class ImgWindow {
     virtual ~ImgWindow();
 
     void GetWindowGeometry(int& left, int& top, int& right, int& bottom) const noexcept;
-
     void SetWindowGeometry(int left, int top, int right, int bottom) noexcept;
-
     void GetWindowGeometryOS(int& left, int& top, int& right, int& bottom) const noexcept;
-
     void SetWindowGeometryOS(int left, int top, int right, int bottom) noexcept;
-
     void GetWindowGeometryVR(int& width, int& height) const noexcept;
-
     void SetWindowGeometryVR(int width, int height) noexcept;
-
     void GetCurrentWindowGeometry(int& left, int& top, int& right, int& bottom) const;
-
     void SetWindowResizingLimits(int minW, int minH, int maxW, int maxH) noexcept;
 
     virtual void SetVisible(bool inIsVisible);
-
     bool GetVisible() const noexcept;
-
     bool IsPoppedOut() const noexcept;
-
     bool IsInVR() const noexcept;
-
     bool IsInsideSim() const;
 
     void SetWindowPositioningMode(XPLMWindowPositioningMode inPosMode, int inMonitorIdx = -1) noexcept;
-
     void BringWindowToFront() noexcept;
-
     bool IsWindowInFront() const noexcept;
 
     void SetWindowDragArea(int left = 0, int top = 0, int right = INT_MAX, int bottom = INT_MAX);
-
     void ClearWindowDragArea();
-
     bool HasWindowDragArea(int* pL = nullptr, int* pT = nullptr, int* pR = nullptr, int* pB = nullptr) const;
-
     bool IsInsideWindowDragArea(int x, int y) const;
 
    protected:
@@ -119,57 +103,42 @@ class ImgWindow {
 
     XPLMWindowID GetWindowId() const { return window_id_; }
 
-    ImGuiIO& GetImGuiIO();
-
    private:
-    static ImFontAtlas* shared_font_atlas_;
-    static ImGuiContext* global_context_;
-
-    std::vector<XPLMDrawCall_t> draw_calls_;
     static void UpdateTexture(ImTextureData* tex);
 
     static void DrawWindowCB(XPLMWindowID inWindowID, void* inRefcon);
 
     static int HandleMouseClickCB(XPLMWindowID inWindowID, int x, int y, XPLMMouseStatus inMouse, void* inRefcon);
-
     static void HandleKeyFuncCB(XPLMWindowID inWindowID, char inKey, XPLMKeyFlags inFlags, char inVirtualKey,
                                 void* inRefcon, int losingFocus);
-
     static XPLMCursorStatus HandleCursorFuncCB(XPLMWindowID inWindowID, int x, int y, void* inRefcon);
-
     static int HandleMouseWheelFuncCB(XPLMWindowID inWindowID, int x, int y, int wheel, int clicks, void* inRefcon);
-
     static int HandleRightClickFuncCB(XPLMWindowID inWindowID, int x, int y, XPLMMouseStatus inMouse, void* inRefcon);
-
     static float SelfDestructCallback(float inElapsedSinceLastCall, float inElapsedTimeSinceLastFlightLoop,
                                       int inCounter, void* inRefcon);
     static std::queue<ImgWindow*> pending_destruction_;
     static XPLMFlightLoopID self_destruct_handler_;
 
     int HandleMouseClickGeneric(int x, int y, XPLMMouseStatus inMouse, int button = 0);
-
     void RenderImGui(ImDrawData* draw_data);
-
     void UpdateImgui();
-
     void TranslateImguiToBoxel(float inX, float inY, int& outX, int& outY);
-
     void TranslateToImguiSpace(int inX, int inY, float& outX, float& outY);
 
+    static ImFontAtlas* shared_font_atlas_;
+    static ImGuiContext* global_context_;
+
+    std::vector<XPLMDrawCall_t> draw_calls_;
     std::string window_title_;
 
     XPLMWindowID window_id_;
     ImGuiContext* imgui_context_;
 
-    int top_;
-    int bottom_;
-    int left_;
-    int right_;
+    int top_, bottom_, left_, right_;
 
     XPLMWindowLayer preferred_layer_;
 
     bool reset_backspace_ = false;
-
     const bool handle_wnd_resize_;
 
     int min_width_ = 100;

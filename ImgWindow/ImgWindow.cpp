@@ -218,11 +218,6 @@ ImgWindow::~ImgWindow() {
     ImGui::DestroyContext(imgui_context_);
 }
 
-ImGuiIO& ImgWindow::GetImGuiIO() {
-    ImGui::SetCurrentContext(imgui_context_);
-    return ImGui::GetIO();
-}
-
 void ImgWindow::GetWindowGeometry(int& left, int& top, int& right, int& bottom) const noexcept {
     XPLMGetWindowGeometry(window_id_, &left, &top, &right, &bottom);
 }
