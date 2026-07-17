@@ -60,28 +60,22 @@ public:
     virtual ~ImgWindow();
 
     /** Gets the current window geometry */
-    void GetWindowGeometry (int& left, int& top, int& right, int& bottom) const
-    { XPLMGetWindowGeometry(mWindowID, &left, &top, &right, &bottom); }
+    void GetWindowGeometry (int& left, int& top, int& right, int& bottom) const;
 
     /** Sets the current window geometry */
-    void SetWindowGeometry (int left, int top, int right, int bottom)
-    { XPLMSetWindowGeometry(mWindowID, left, top, right, bottom); }
+    void SetWindowGeometry (int left, int top, int right, int bottom);
 
     /** Gets the current window geometry of a popped out window */
-    void GetWindowGeometryOS (int& left, int& top, int& right, int& bottom) const
-    { XPLMGetWindowGeometryOS(mWindowID, &left, &top, &right, &bottom); }
+    void GetWindowGeometryOS (int& left, int& top, int& right, int& bottom) const;
 
     /** Sets the current window geometry of a popped out window */
-    void SetWindowGeometryOS (int left, int top, int right, int bottom)
-    { XPLMSetWindowGeometryOS(mWindowID, left, top, right, bottom); }
+    void SetWindowGeometryOS (int left, int top, int right, int bottom);
 
     /** Gets the current window size of window in VR */
-    void GetWindowGeometryVR (int& width, int& height) const
-    { XPLMGetWindowGeometryVR(mWindowID, &width, &height); }
+    void GetWindowGeometryVR (int& width, int& height) const;
 
     /** Sets the current window size of window in VR */
-    void SetWindowGeometryVR (int width, int height)
-    { XPLMSetWindowGeometryVR(mWindowID, width, height); }
+    void SetWindowGeometryVR (int width, int height);
 
     /** Gets the current valid geometry (free, OS, or VR
         If VR, then left=bottom=0 and right=width and top=height*/
@@ -105,25 +99,24 @@ public:
     bool GetVisible() const;
 
     /** Is Window popped out */
-    bool IsPoppedOut () const { return XPLMWindowIsPoppedOut(mWindowID) != 0; }
+    bool IsPoppedOut () const;
 
     /** Is Window in VR? */
-    bool IsInVR () const { return XPLMWindowIsInVR(mWindowID) != 0; }
+    bool IsInVR () const;
 
     /** Is Window inside the sim? */
-    bool IsInsideSim () const { return !IsPoppedOut() && !IsInVR(); }
+    bool IsInsideSim () const;
 
     /** Set the positioning mode
      * @see https://developer.x-plane.com/sdk/XPLMDisplay/#XPLMWindowPositioningMode */
     void SetWindowPositioningMode (XPLMWindowPositioningMode inPosMode,
-                                   int                       inMonitorIdx = -1)
-    { XPLMSetWindowPositioningMode (mWindowID, inPosMode, inMonitorIdx); }
+                                   int                       inMonitorIdx = -1);
 
     /** Bring window to front of Z-order */
-    void BringWindowToFront () { XPLMBringWindowToFront(mWindowID); }
+    void BringWindowToFront ();
 
     /** Is Window in front of Z-order? */
-    bool IsWindowInFront () const { return XPLMIsWindowInFront(mWindowID) != 0; }
+    bool IsWindowInFront () const;
 
     /** @brief Define Window drag area, ie. an area in which dragging with the mouse
      * moves the entire window.

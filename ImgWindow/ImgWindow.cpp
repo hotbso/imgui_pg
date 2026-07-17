@@ -188,6 +188,54 @@ ImGuiIO& ImgWindow::GetImGuiIO() {
     return ImGui::GetIO();
 }
 
+void ImgWindow::GetWindowGeometry(int& left, int& top, int& right, int& bottom) const {
+    XPLMGetWindowGeometry(mWindowID, &left, &top, &right, &bottom);
+}
+
+void ImgWindow::SetWindowGeometry(int left, int top, int right, int bottom) {
+    XPLMSetWindowGeometry(mWindowID, left, top, right, bottom);
+}
+
+void ImgWindow::GetWindowGeometryOS(int& left, int& top, int& right, int& bottom) const {
+    XPLMGetWindowGeometryOS(mWindowID, &left, &top, &right, &bottom);
+}
+
+void ImgWindow::SetWindowGeometryOS(int left, int top, int right, int bottom) {
+    XPLMSetWindowGeometryOS(mWindowID, left, top, right, bottom);
+}
+
+void ImgWindow::GetWindowGeometryVR(int& width, int& height) const {
+    XPLMGetWindowGeometryVR(mWindowID, &width, &height);
+}
+
+void ImgWindow::SetWindowGeometryVR(int width, int height) {
+    XPLMSetWindowGeometryVR(mWindowID, width, height);
+}
+
+bool ImgWindow::IsPoppedOut() const {
+    return XPLMWindowIsPoppedOut(mWindowID) != 0;
+}
+
+bool ImgWindow::IsInVR() const {
+    return XPLMWindowIsInVR(mWindowID) != 0;
+}
+
+bool ImgWindow::IsInsideSim() const {
+    return !IsPoppedOut() && !IsInVR();
+}
+
+void ImgWindow::SetWindowPositioningMode(XPLMWindowPositioningMode inPosMode, int inMonitorIdx) {
+    XPLMSetWindowPositioningMode(mWindowID, inPosMode, inMonitorIdx);
+}
+
+void ImgWindow::BringWindowToFront() {
+    XPLMBringWindowToFront(mWindowID);
+}
+
+bool ImgWindow::IsWindowInFront() const {
+    return XPLMIsWindowInFront(mWindowID) != 0;
+}
+
 void
 ImgWindow::GetCurrentWindowGeometry (int& left, int& top, int& right, int& bottom) const
 {
