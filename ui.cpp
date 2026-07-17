@@ -46,7 +46,7 @@ static constexpr float kFontSize = 14.0f;
 
 std::unique_ptr<ImgWindow> ui, ui1;
 
-ImFont* std_font, *mono_font;
+ImFont* std_font, *mono_font, *symbol_font;
 
 void CreateUi(int delta, std::unique_ptr<ImgWindow>& ui) {
     int sc_left, sc_top;
@@ -59,7 +59,6 @@ void CreateUi(int delta, std::unique_ptr<ImgWindow>& ui) {
     ui = std::make_unique<Ui>(left + delta, top, right + delta, bottom);
 }
 
-
 void UiLoadFonts() {
     ImFontAtlas* atlas = ImgWindow::GetSharedFontAtlas();
     if (!atlas) {
@@ -68,36 +67,18 @@ void UiLoadFonts() {
     }
 
     // load from X-Plane's default font directory
-    std_font = atlas->AddFontFromFileTTF("./Resources/fonts/DejaVuSans.ttf", kFontSize);
+    std_font = atlas->AddFontFromFileTTF("./Resources/fonts/DejaVuSans.ttf");
     if (std_font == nullptr) {
         LogMsg("Failed to load font DejaVuSans from file, falling back to default font");
     }
 
-#if 0
-    // Now we merge some icons from the OpenFontsIcons font into the above font
-    // (see `imgui/docs/FONTS.txt`)
-    ImFontConfig config;
-    config.MergeMode = true;
-
-    // We only read very selectively the individual glyphs we are actually using
-    // to safe on texture space
-    ImVector<ImWchar> icon_ranges;
-    ImFontGlyphRangesBuilder builder;
-    // Add all icons that are actually used (they concatenate into one string)
-    builder.AddText((const char*)ICON_FA_CHECK);
-    builder.BuildRanges(&icon_ranges);
-
-    // Merge the icon font with the text font
-    atlas->AddFontFromMemoryCompressedTTF(fa_solid_900_compressed_data,
-                                          fa_solid_900_compressed_size,
-                                          kFontSize,
-                                          &config,
-                                          icon_ranges.Data);
-#endif
-    mono_font = atlas->AddFontFromFileTTF("./Resources/fonts/DejaVuSansMono.ttf", kFontSize);
+    mono_font = atlas->AddFontFromFileTTF("./Resources/fonts/DejaVuSansMono.ttf");
     if (mono_font == nullptr) {
         LogMsg("Failed to load font DejaVuSansMono from file, falling back to default font");
     }
+
+    symbol_font =
+        atlas->AddFontFromMemoryCompressedTTF(fa_solid_900_compressed_data, fa_solid_900_compressed_size);
 }
 
 void UiFini() {
@@ -117,6 +98,9 @@ Ui::Ui(int left, int top, int right, int bot)
         FlightLoopCb,                             // callbackFunc
         (void*)this,                              // refcon
     };
+
+    ImGuiStyle& style = ImGui::GetStyle();
+    style.FontSizeBase = kFontSize;
 
     flt_id_ = XPLMCreateFlightLoop(&loop_params);
 
@@ -148,7 +132,9 @@ void Ui::BuildInterface() {
         if (checkbox_state_) {
             ImGui::TextUnformatted("Checkbox state: ");
             ImGui::SameLine();
+            ImGui::PushFont(symbol_font, 0.0f);
             ImGui::TextUnformatted((const char*)ICON_FA_CHECK);
+            ImGui::PopFont();
         }
     } else {
         ImGui::TextUnformatted("No settings available");

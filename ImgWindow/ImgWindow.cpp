@@ -199,6 +199,7 @@ ImgWindow::ImgWindow(int left, int top, int right, int bottom,
 
     io.BackendFlags |=
         ImGuiBackendFlags_RendererHasTextures;  // We can honor ImGuiPlatformIO::Textures[] requests during render.
+    // keep the current context so the constructor of the derived class can use ImGui functions to set up the interface.
 }
 
 ImgWindow::~ImgWindow() {
