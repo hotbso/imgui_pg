@@ -55,8 +55,11 @@ constexpr int kWndResizeTopWidth = 5;
 constexpr int kWndResizeRightWidth = 15;
 constexpr int kWndResizeBottomWidth = 15;
 
-static XPLMDataRef g_vr_enabled_ref = nullptr;
-static XPLMDataRef g_frame_rate_period_ref = nullptr;
+static XPLMDataRef vr_enabled_dr = nullptr;
+static XPLMDataRef frame_rate_period_dr = nullptr;
+
+ImFontAtlas* ImgWindow::shared_font_atlas_ = nullptr;
+ImGuiContext* ImgWindow::global_context_ = nullptr;
 
 static ImGuiKey TranslateXPLMKeyToImGui(unsigned char inVirtualKey) {
     switch (inVirtualKey) {
@@ -150,13 +153,13 @@ static ImGuiKey TranslateXPLMKeyToImGui(unsigned char inVirtualKey) {
     return ImGuiKey_None;
 }
 
-ImgWindow::ImgWindow(int left, int top, int right, int bottom, ImFontAtlas* shared_font_atlas,
+ImgWindow::ImgWindow(int left, int top, int right, int bottom,
                      XPLMWindowDecoration decoration, XPLMWindowLayer layer)
     : first_render_(true),
       preferred_layer_(layer),
       handle_wnd_resize_(xplm_WindowDecorationSelfDecoratedResizable == decoration) {
-    imgui_context_ = ImGui::CreateContext();
-    ImGui::SetCurrentContext(imgui_context_);
+    IM_ASSERT(shared_font_atlas_ != nullptr && "ImgWindow::ImgWindow: shared_font_atlas_ is nullptr, call ImgWindowLoadFonts() first");
+
     XPLMCreateWindow_t windowParams = {sizeof(windowParams),
                                        left,
                                        top,
@@ -178,7 +181,6 @@ ImgWindow::ImgWindow(int left, int top, int right, int bottom, ImFontAtlas* shar
     window_id_ = XPLMCreateWindowEx(&windowParams);
     draw_calls_.reserve(50);  // reserve some space to avoid reallocations
 
-    shared_font_atlas_ = shared_font_atlas;
     imgui_context_ = ImGui::CreateContext(shared_font_atlas_);
     ImGui::SetCurrentContext(imgui_context_);
     auto& io = ImGui::GetIO();
@@ -401,9 +403,9 @@ void ImgWindow::UpdateImgui() {
 
     // Needed to add this to prevent io.DeltaTime causing a CTD because when X-Plane starts FrameRatePeriod is equal
     // to 0.0f
-    float FrameRatePeriod = XPLMGetDataf(g_frame_rate_period_ref);
+    float FrameRatePeriod = XPLMGetDataf(frame_rate_period_dr);
     if (FrameRatePeriod > 0.0f) {
-        io.DeltaTime = XPLMGetDataf(g_frame_rate_period_ref);
+        io.DeltaTime = XPLMGetDataf(frame_rate_period_dr);
     }
     io.DisplaySize = ImVec2(win_width, win_height);
     // in boxels, we're always scale 1, 1.
@@ -712,7 +714,7 @@ void ImgWindow::SetVisible(bool inIsVisible) {
 void ImgWindow::MoveForVR() {
     // if we're trying to display the window, check the state of the VR flag
     // - if we're VR enabled, explicitly move the window to the VR world.
-    if (XPLMGetDatai(g_vr_enabled_ref)) {
+    if (XPLMGetDatai(vr_enabled_dr)) {
         XPLMSetWindowPositioningMode(window_id_, xplm_WindowVR, 0);
     } else {
         if (IsInVR()) {
@@ -795,22 +797,32 @@ bool ImgWindow::Initialize() {
     if (init_done)
         return true;
     init_done = true;
+    LogMsg("ImgWindow::Initialize: initializing ImGui context and shared font atlas");
 
-    g_vr_enabled_ref = XPLMFindDataRef("sim/graphics/VR/enabled");
-    g_frame_rate_period_ref = XPLMFindDataRef("sim/operation/misc/frame_rate_period");
+    vr_enabled_dr = XPLMFindDataRef("sim/graphics/VR/enabled");
+    frame_rate_period_dr = XPLMFindDataRef("sim/operation/misc/frame_rate_period");
+
+    global_context_ = ImGui::CreateContext();
+    ImGui::SetCurrentContext(global_context_);
+    auto& io = ImGui::GetIO();
+    io.BackendFlags |=
+        ImGuiBackendFlags_RendererHasTextures;  // We can honor ImGuiPlatformIO::Textures[] requests during render.
+    shared_font_atlas_ = io.Fonts;
     return true;
 }
 
 void ImgWindow::Finalize() {
-#if 0
+    if (global_context_ == nullptr)
+        return;
+    ImGui::SetCurrentContext(global_context_);
     LogMsg("ImgWindow::Finalize: destroying ImGui textures");
     for (ImTextureData* tex : ImGui::GetPlatformIO().Textures)
         if (tex->RefCount == 1) {
             tex->SetStatus(ImTextureStatus_WantDestroy);
             UpdateTexture(tex);
         }
-    LogMsg("ImgWindow::Finalize: destroying ImGui context %p", (void*)imgui_context_);
-    ImGui::DestroyContext(imgui_context_);
-#endif
-    // nothing to do for now
+    LogMsg("ImgWindow::Finalize: destroying ImGui context %p", (void*)global_context_);
+    ImGui::DestroyContext(global_context_);
+    global_context_ = nullptr;
+    shared_font_atlas_ = nullptr;
 }

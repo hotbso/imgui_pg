@@ -29,6 +29,7 @@ class Ui : public ImgWindow {
     XPLMFlightLoopID flt_id_ = nullptr;
     std::string pilot_id_ = "12345";
     bool checkbox_state_ = 0;
+    bool mono_font_enabled_ = false;
     int font_slider_ = 14;
 
     // Main function: creates the window's UI
@@ -45,7 +46,8 @@ class Ui : public ImgWindow {
 
 // Configure and Cleanup
 extern void ImgWindowIni();
-extern void ImgWindowFini();
+extern void UiFini();
+extern void UiLoadFonts();
 
 extern void CreateUi(int delta, std::unique_ptr<ImgWindow>& ui);
 

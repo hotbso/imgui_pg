@@ -49,6 +49,7 @@ class ImgWindow {
    public:
     static bool Initialize();
     static void Finalize();
+    static ImFontAtlas* GetSharedFontAtlas() { return shared_font_atlas_; }
 
     virtual ~ImgWindow();
 
@@ -95,7 +96,7 @@ class ImgWindow {
    protected:
     bool first_render_;
 
-    ImgWindow(int left, int top, int right, int bottom, ImFontAtlas* shared_font_atlas = nullptr,
+    ImgWindow(int left, int top, int right, int bottom,
               XPLMWindowDecoration decoration = xplm_WindowDecorationRoundRectangle,
               XPLMWindowLayer layer = xplm_WindowLayerFloatingWindows);
 
@@ -121,7 +122,9 @@ class ImgWindow {
     ImGuiIO& GetImGuiIO();
 
    private:
-    ImFontAtlas* shared_font_atlas_;
+    static ImFontAtlas* shared_font_atlas_;
+    static ImGuiContext* global_context_;
+
     std::vector<XPLMDrawCall_t> draw_calls_;
     static void UpdateTexture(ImTextureData* tex);
 

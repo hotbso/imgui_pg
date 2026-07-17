@@ -18,41 +18,6 @@ const char* log_msg_prefix = "imgui_pg: ";
 XPLMMenuID g_menu_id = nullptr;
 XPLMCommandRef g_open_cmd = nullptr;
 
-#if 0
-static constexpr int kWinWidth = 400;
-static constexpr int kWinHeight = 450;
-static constexpr int kWinPad = 75;
-
-void DrawWindowCb(XPLMWindowID win_id, void* inRefcon) {
-    //LogMsg("DrawWindowCb: win_id=%p, inRefcon=%p", win_id, inRefcon);
-    uint32_t red = XPLMMakeColor(1.0f, 0, 0, 1.0f);
-    uint32_t green = XPLMMakeColor(0, 1.0f, 0, 1.0f);
-
-    XPLMVertexColor_t vertices[] = {
-        {0, 5, green},
-        {kWinWidth, 5, green},
-
-        {0, 0, red},
-        {kWinWidth, kWinHeight, red},
-
-        {0, kWinHeight, green},
-        {kWinWidth, 0, green},
-    };
-
-    int n_vertex = sizeof(vertices) / sizeof(vertices[0]);
-
-    int left, top;
-    XPLMGetWindowGeometry(win_id, &left, &top, nullptr, nullptr);
-    //LogMsg("DrawWindowCb: left=%d, top=%d", left, top);
-    for (auto& v : vertices) {
-        v.x += left;
-        v.y = top - v.y;
-    }
-
-    XPLMLinesc(vertices, n_vertex);
-}
-#endif
-
 void OnOpen() {
     XPLMDebugString("imgui_pg: open");
     if (ui == nullptr)
@@ -98,16 +63,20 @@ PLUGIN_API int XPluginStart(char* out_name, char* out_sig, char* out_desc) {
     g_menu_id = XPLMCreateMenu("imgui_pg", XPLMFindPluginsMenu(), plugins_menu_item, MenuHandler, nullptr);
     XPLMAppendMenuItem(g_menu_id, "Open", reinterpret_cast<void*>(static_cast<intptr_t>(0)), 1);
 
-    ImgWindowIni();
+    ImgWindow::Initialize();
+    UiLoadFonts();
     return 1;
 }
 
 PLUGIN_API void XPluginStop() {
     ui = nullptr;  // just in case ...
+    ui1 = nullptr;
     XPLMUnregisterCommandHandler(g_open_cmd, OpenCmdHandler,
                                  /*in_before=*/1, /*in_refcon=*/nullptr);
     XPLMDestroyMenu(g_menu_id);
-    ImgWindowFini();
+    UiFini();
+    ImgWindow::Finalize();
+    LogMsg("imgui_pg plugin stopped");
 }
 
 PLUGIN_API int XPluginEnable() { return 1; }

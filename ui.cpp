@@ -44,9 +44,9 @@ static constexpr int kWinHeight = 450;
 static constexpr int kWinPad = 75;
 static constexpr float kFontSize = 14.0f;
 
-static ImFontAtlas* shared_font_atlas = nullptr;
-static ImGuiContext* global_context;
 std::unique_ptr<ImgWindow> ui, ui1;
+
+ImFont* std_font, *mono_font;
 
 void CreateUi(int delta, std::unique_ptr<ImgWindow>& ui) {
     int sc_left, sc_top;
@@ -60,20 +60,20 @@ void CreateUi(int delta, std::unique_ptr<ImgWindow>& ui) {
 }
 
 
-void ImgWindowIni() {
-    LogMsg("Initializing Imgui Window...");
-    global_context = ImGui::CreateContext();
-    ImGui::SetCurrentContext(global_context);
-    auto& io = ImGui::GetIO();
-    io.BackendFlags |=
-        ImGuiBackendFlags_RendererHasTextures;  // We can honor ImGuiPlatformIO::Textures[] requests during render.
-    shared_font_atlas = io.Fonts;
+void UiLoadFonts() {
+    ImFontAtlas* atlas = ImgWindow::GetSharedFontAtlas();
+    if (!atlas) {
+        LogMsg("ImgWindowLoadFonts: shared font atlas is not initialized");
+        return;
+    }
 
     // load from X-Plane's default font directory
-    if (io.Fonts->AddFontFromFileTTF("./Resources/fonts/DejaVuSans.ttf", kFontSize) == nullptr) {
+    std_font = atlas->AddFontFromFileTTF("./Resources/fonts/DejaVuSans.ttf", kFontSize);
+    if (std_font == nullptr) {
         LogMsg("Failed to load font DejaVuSans from file, falling back to default font");
     }
 
+#if 0
     // Now we merge some icons from the OpenFontsIcons font into the above font
     // (see `imgui/docs/FONTS.txt`)
     ImFontConfig config;
@@ -88,27 +88,28 @@ void ImgWindowIni() {
     builder.BuildRanges(&icon_ranges);
 
     // Merge the icon font with the text font
-    io.Fonts->AddFontFromMemoryCompressedTTF(fa_solid_900_compressed_data,
-                                                          fa_solid_900_compressed_size,
-                                                          kFontSize,
-                                                          &config,
-                                                          icon_ranges.Data);
+    atlas->AddFontFromMemoryCompressedTTF(fa_solid_900_compressed_data,
+                                          fa_solid_900_compressed_size,
+                                          kFontSize,
+                                          &config,
+                                          icon_ranges.Data);
+#endif
+    mono_font = atlas->AddFontFromFileTTF("./Resources/fonts/DejaVuSansMono.ttf", kFontSize);
+    if (mono_font == nullptr) {
+        LogMsg("Failed to load font DejaVuSansMono from file, falling back to default font");
+    }
 }
 
-void ImgWindowFini() {
+void UiFini() {
     ui = nullptr; // just in case ...
     ui1 = nullptr;
-
-    assert(global_context);
-    ImGui::DestroyContext(global_context);
-    global_context = nullptr;
-    shared_font_atlas = nullptr;
+    ImgWindow::Finalize();
     LogMsg("Imgui Window finalized");
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////
 Ui::Ui(int left, int top, int right, int bot)
-    : ImgWindow(left, top, right, bot, shared_font_atlas) {
+    : ImgWindow(left, top, right, bot) {
     // Create a flight loop id, but don't schedule it yet
     XPLMCreateFlightLoop_t loop_params = {
         sizeof(loop_params),                      // structSize
@@ -144,7 +145,11 @@ void Ui::BuildInterface() {
         ImGui::Separator();
         ImGui::TreePop();
         ImGui::Checkbox("Enable feature X", &checkbox_state_);
-        ImGui::Text("Checkbox state: %d", checkbox_state_);
+        if (checkbox_state_) {
+            ImGui::TextUnformatted("Checkbox state: ");
+            ImGui::SameLine();
+            ImGui::TextUnformatted((const char*)ICON_FA_CHECK);
+        }
     } else {
         ImGui::TextUnformatted("No settings available");
     }
@@ -153,9 +158,18 @@ void Ui::BuildInterface() {
         LogMsg("Font size set to %d", font_slider_);
     }
 
+    if (ImGui::Checkbox("Use monospace font", &mono_font_enabled_)) {
+        LogMsg("Monospace font %s", mono_font_enabled_ ? "enabled" : "disabled");
+    }
+    if (mono_font_enabled_ )
+        ImGui::PushFont(mono_font, 0.0f);
+
     ImGui::PushFont(NULL, static_cast<float>(font_slider_));
     ImGui::TextUnformatted("This text is displayed in the selected font size.");
     ImGui::PopFont();
+
+    if (mono_font_enabled_)
+        ImGui::PopFont();
 }
 
 // Delayed actions that require FlightLoop context
