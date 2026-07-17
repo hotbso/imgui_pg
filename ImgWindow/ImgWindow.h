@@ -52,37 +52,37 @@ class ImgWindow {
 
     virtual ~ImgWindow();
 
-    void GetWindowGeometry(int& left, int& top, int& right, int& bottom) const;
+    void GetWindowGeometry(int& left, int& top, int& right, int& bottom) const noexcept;
 
-    void SetWindowGeometry(int left, int top, int right, int bottom);
+    void SetWindowGeometry(int left, int top, int right, int bottom) noexcept;
 
-    void GetWindowGeometryOS(int& left, int& top, int& right, int& bottom) const;
+    void GetWindowGeometryOS(int& left, int& top, int& right, int& bottom) const noexcept;
 
-    void SetWindowGeometryOS(int left, int top, int right, int bottom);
+    void SetWindowGeometryOS(int left, int top, int right, int bottom) noexcept;
 
-    void GetWindowGeometryVR(int& width, int& height) const;
+    void GetWindowGeometryVR(int& width, int& height) const noexcept;
 
-    void SetWindowGeometryVR(int width, int height);
+    void SetWindowGeometryVR(int width, int height) noexcept;
 
     void GetCurrentWindowGeometry(int& left, int& top, int& right, int& bottom) const;
 
-    void SetWindowResizingLimits(int minW, int minH, int maxW, int maxH);
+    void SetWindowResizingLimits(int minW, int minH, int maxW, int maxH) noexcept;
 
     virtual void SetVisible(bool inIsVisible);
 
-    bool GetVisible() const;
+    bool GetVisible() const noexcept;
 
-    bool IsPoppedOut() const;
+    bool IsPoppedOut() const noexcept;
 
-    bool IsInVR() const;
+    bool IsInVR() const noexcept;
 
     bool IsInsideSim() const;
 
-    void SetWindowPositioningMode(XPLMWindowPositioningMode inPosMode, int inMonitorIdx = -1);
+    void SetWindowPositioningMode(XPLMWindowPositioningMode inPosMode, int inMonitorIdx = -1) noexcept;
 
-    void BringWindowToFront();
+    void BringWindowToFront() noexcept;
 
-    bool IsWindowInFront() const;
+    bool IsWindowInFront() const noexcept;
 
     void SetWindowDragArea(int left = 0, int top = 0, int right = INT_MAX, int bottom = INT_MAX);
 

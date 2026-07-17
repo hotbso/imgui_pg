@@ -220,41 +220,41 @@ ImGuiIO& ImgWindow::GetImGuiIO() {
     return ImGui::GetIO();
 }
 
-void ImgWindow::GetWindowGeometry(int& left, int& top, int& right, int& bottom) const {
+void ImgWindow::GetWindowGeometry(int& left, int& top, int& right, int& bottom) const noexcept {
     XPLMGetWindowGeometry(window_id_, &left, &top, &right, &bottom);
 }
 
-void ImgWindow::SetWindowGeometry(int left, int top, int right, int bottom) {
+void ImgWindow::SetWindowGeometry(int left, int top, int right, int bottom) noexcept {
     XPLMSetWindowGeometry(window_id_, left, top, right, bottom);
 }
 
-void ImgWindow::GetWindowGeometryOS(int& left, int& top, int& right, int& bottom) const {
+void ImgWindow::GetWindowGeometryOS(int& left, int& top, int& right, int& bottom) const noexcept {
     XPLMGetWindowGeometryOS(window_id_, &left, &top, &right, &bottom);
 }
 
-void ImgWindow::SetWindowGeometryOS(int left, int top, int right, int bottom) {
+void ImgWindow::SetWindowGeometryOS(int left, int top, int right, int bottom) noexcept {
     XPLMSetWindowGeometryOS(window_id_, left, top, right, bottom);
 }
 
-void ImgWindow::GetWindowGeometryVR(int& width, int& height) const {
+void ImgWindow::GetWindowGeometryVR(int& width, int& height) const noexcept {
     XPLMGetWindowGeometryVR(window_id_, &width, &height);
 }
 
-void ImgWindow::SetWindowGeometryVR(int width, int height) { XPLMSetWindowGeometryVR(window_id_, width, height); }
+void ImgWindow::SetWindowGeometryVR(int width, int height) noexcept { XPLMSetWindowGeometryVR(window_id_, width, height); }
 
-bool ImgWindow::IsPoppedOut() const { return XPLMWindowIsPoppedOut(window_id_) != 0; }
+bool ImgWindow::IsPoppedOut() const noexcept { return XPLMWindowIsPoppedOut(window_id_) != 0; }
 
-bool ImgWindow::IsInVR() const { return XPLMWindowIsInVR(window_id_) != 0; }
+bool ImgWindow::IsInVR() const noexcept { return XPLMWindowIsInVR(window_id_) != 0; }
 
 bool ImgWindow::IsInsideSim() const { return !IsPoppedOut() && !IsInVR(); }
 
-void ImgWindow::SetWindowPositioningMode(XPLMWindowPositioningMode inPosMode, int inMonitorIdx) {
+void ImgWindow::SetWindowPositioningMode(XPLMWindowPositioningMode inPosMode, int inMonitorIdx) noexcept {
     XPLMSetWindowPositioningMode(window_id_, inPosMode, inMonitorIdx);
 }
 
-void ImgWindow::BringWindowToFront() { XPLMBringWindowToFront(window_id_); }
+void ImgWindow::BringWindowToFront() noexcept { XPLMBringWindowToFront(window_id_); }
 
-bool ImgWindow::IsWindowInFront() const { return XPLMIsWindowInFront(window_id_) != 0; }
+bool ImgWindow::IsWindowInFront() const noexcept { return XPLMIsWindowInFront(window_id_) != 0; }
 
 void ImgWindow::GetCurrentWindowGeometry(int& left, int& top, int& right, int& bottom) const {
     if (IsPoppedOut())
@@ -267,7 +267,7 @@ void ImgWindow::GetCurrentWindowGeometry(int& left, int& top, int& right, int& b
     }
 }
 
-void ImgWindow::SetWindowResizingLimits(int minW, int minH, int maxW, int maxH) {
+void ImgWindow::SetWindowResizingLimits(int minW, int minH, int maxW, int maxH) noexcept {
     min_width_ = minW;
     min_height_ = minH;
     max_width_ = maxW;
@@ -721,7 +721,7 @@ void ImgWindow::MoveForVR() {
     }
 }
 
-bool ImgWindow::GetVisible() const { return XPLMGetWindowIsVisible(window_id_) != 0; }
+bool ImgWindow::GetVisible() const noexcept { return XPLMGetWindowIsVisible(window_id_) != 0; }
 
 bool ImgWindow::OnShow() { return true; }
 
