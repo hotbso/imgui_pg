@@ -154,24 +154,24 @@ ImgWindow::ImgWindow(int left, int top, int right, int bottom, XPLMWindowDecorat
     IM_ASSERT(shared_font_atlas_ != nullptr &&
               "ImgWindow::ImgWindow: shared_font_atlas_ is nullptr, call ImgWindowLoadFonts() first");
 
-    static XPLMCreateWindow_t windowParams = {sizeof(windowParams),
-                                              left,
-                                              top,
-                                              right,
-                                              bottom,
-                                              0,
-                                              DrawWindowCB,
-                                              HandleMouseClickCB,
-                                              HandleKeyFuncCB,
-                                              NULL,  // HandleCursorFuncCB
-                                              HandleMouseWheelFuncCB,
-                                              reinterpret_cast<void*>(this),
-                                              decoration,
-                                              layer,
-                                              HandleRightClickFuncCB,
-                                              xplm_WindowContentTypePanelGraphics,
-                                              nullptr,
-                                              nullptr};
+    XPLMCreateWindow_t windowParams = {sizeof(windowParams),
+                                       left,
+                                       top,
+                                       right,
+                                       bottom,
+                                       0,
+                                       DrawWindowCB,
+                                       HandleMouseClickCB,
+                                       HandleKeyFuncCB,
+                                       NULL,  // HandleCursorFuncCB
+                                       HandleMouseWheelFuncCB,
+                                       reinterpret_cast<void*>(this),
+                                       decoration,
+                                       layer,
+                                       HandleRightClickFuncCB,
+                                       xplm_WindowContentTypePanelGraphics,
+                                       nullptr,
+                                       nullptr};
 
     window_id_ = XPLMCreateWindowEx(&windowParams);
     draw_calls_.reserve(50);  // reserve some space to avoid reallocations
