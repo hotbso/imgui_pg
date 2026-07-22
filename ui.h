@@ -45,7 +45,6 @@ class Ui : public ImgWindow {
 };
 
 // Configure and Cleanup
-extern void ImgWindowIni();
 extern void UiFini();
 extern void UiLoadFonts();
 
