@@ -33,12 +33,6 @@
 // POSSIBILITY OF SUCH DAMAGE.
 //
 
-#if IBM
-#include <windows.h>
-#elif APL
-#include <Carbon/Carbon.h>
-#endif
-
 #include "ImgWindow.h"
 #include "imgui_internal.h"
 
@@ -480,21 +474,9 @@ int ImgWindow::HandleMouseClickGeneric(int x, int y, XPLMMouseStatus inMouse, in
     const int dx = x - last_mouse_drag_x_;  // dragged how far since last down/drag event?
     const int dy = y - last_mouse_drag_y_;
 
-    bool shift{}, ctrl{};
-
-#if IBM  // Windows
-    shift = (GetAsyncKeyState(VK_SHIFT) & 0x8000) != 0;
-    ctrl = (GetAsyncKeyState(VK_CONTROL) & 0x8000) != 0;
-    // LogMsg("HandleMouseClickGeneric: x=%d, y=%d, inMouse=%d, button=%d, loc_x=%d, loc_y=%d, dx=%d, dy=%d,
-    // ShiftPressed=%d, CtrlPressed=%d",
-    //         x, y, (int)inMouse, button, loc_x, loc_y, dx, dy, shift, ctrl);
-#elif APL  // macOS
-    UInt32 modifiers = GetCurrentKeyModifiers();
-    shift = (modifiers & shiftKey) != 0;
-    ctrl = (modifiers & controlKey) != 0;
-#elif LIN
-#warning "Linux: HandleMouseClickGeneric: Sorry, Shift/Ctrl detection not implemented, no multiselection possible!"
-#endif
+    auto modifiers = XPLMGetModifierKeys();
+    bool shift = (modifiers & xplm_ShiftFlag);
+    bool ctrl = (modifiers & xplm_ControlFlag);
 
     switch (inMouse) {
         case xplm_MouseDrag:
