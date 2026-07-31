@@ -10,8 +10,6 @@ if(NOT DEFINED XPLANE_SDK_PATH)
     set(XPLANE_SDK_PATH "${CMAKE_SOURCE_DIR}/SDK")
 endif()
 
-set(XPLIB "${CMAKE_CURRENT_SOURCE_DIR}/../xplib" CACHE PATH "xplib root")
-
 SET(IMGUI_SRCS
     ${CMAKE_SOURCE_DIR}/imgui/imgui.cpp
     ${CMAKE_SOURCE_DIR}/imgui/imgui_draw.cpp
@@ -24,7 +22,7 @@ SET(IMGUI_SRCS
 set(SOURCES
     imgui_pg.cpp
     ui.cpp
-    ${XPLIB}/log_msg.cpp
+    log_msg.cpp
     ${IMGUI_SRCS}
 )
 
@@ -33,7 +31,7 @@ add_library(imgui_pg SHARED ${SOURCES})
 set_target_properties(imgui_pg PROPERTIES PREFIX "" SUFFIX ".xpl")
 
 target_include_directories(imgui_pg PRIVATE
-    ${XPLIB}
+    ${CMAKE_SOURCE_DIR}
     ${CMAKE_SOURCE_DIR}/imgui
     ${CMAKE_SOURCE_DIR}/imgui/misc/cpp
     ${CMAKE_SOURCE_DIR}/ImgWindow
