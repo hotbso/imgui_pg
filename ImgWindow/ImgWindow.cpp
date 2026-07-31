@@ -443,7 +443,7 @@ void ImgWindow::DrawWindowCB(XPLMWindowID /* inWindowID */, void* inRefcon) {
     auto* thisWindow = reinterpret_cast<ImgWindow*>(inRefcon);
 
     if (thisWindow->request_texture_update_) {
-        LogMsg("ImgWindow::DrawWindowCB: Processing texture update request");
+        LogMsg("ImgWindow::DrawWindowCB: texture update is still in progess");
         return;
     }
 
@@ -456,16 +456,16 @@ void ImgWindow::DrawWindowCB(XPLMWindowID /* inWindowID */, void* inRefcon) {
     }
 
     ImDrawData* draw_data = ImGui::GetDrawData();
-    bool request_texture_update_ = false;
+    thisWindow->request_texture_update_ = false;
 
     if (draw_data->Textures != nullptr)
         for (ImTextureData* tex : *draw_data->Textures)
             if (tex->Status != ImTextureStatus_OK) {
-                request_texture_update_ = true;
+                thisWindow->request_texture_update_ = true;
                 break;
             }
 
-    if (request_texture_update_) {
+    if (thisWindow->request_texture_update_) {
         LogMsg("ImgWindow::DrawWindowCB: Texture update requested, scheduling background processing");
         thisWindow->pending_draw_data_ = draw_data;
         thisWindow->request_texture_update_ = true;
