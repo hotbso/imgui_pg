@@ -154,6 +154,16 @@ ImgWindow::ImgWindow(int left, int top, int right, int bottom, XPLMWindowDecorat
     IM_ASSERT(shared_font_atlas_ != nullptr &&
               "ImgWindow::ImgWindow: shared_font_atlas_ is nullptr, call ImgWindowLoadFonts() first");
 
+    // Create a flight loop id, but don't schedule it yet
+    XPLMCreateFlightLoop_t loop_params = {
+        sizeof(loop_params),                      // structSize
+        xplm_FlightLoop_Phase_BeforeFlightModel,  // phase
+        BgProcessingCb,                             // callbackFunc
+        (void*)this,                              // refcon
+    };
+
+    bg_processing_fl_ = XPLMCreateFlightLoop(&loop_params);
+
     XPLMCreateWindow_t windowParams = {sizeof(windowParams),
                                        left,
                                        top,
@@ -315,11 +325,6 @@ void ImgWindow::RenderImGui(ImDrawData* draw_data) {
         draw_data->ScaleClipRects(io.DisplayFramebufferScale);
     }
 
-    if (draw_data->Textures != nullptr)
-        for (ImTextureData* tex : *draw_data->Textures)
-            if (tex->Status != ImTextureStatus_OK)
-                UpdateTexture(tex);
-
     for (int n = 0; n < draw_data->CmdListsCount; n++) {
         // LogMsg("ImgWindow::RenderImGui: processing draw list %d of %d", n, draw_data->CmdListsCount);
         const ImDrawList* cmd_list = draw_data->CmdLists[n];
@@ -437,10 +442,37 @@ void ImgWindow::UpdateImgui() {
 void ImgWindow::DrawWindowCB(XPLMWindowID /* inWindowID */, void* inRefcon) {
     auto* thisWindow = reinterpret_cast<ImgWindow*>(inRefcon);
 
-    thisWindow->UpdateImgui();
+    if (thisWindow->request_texture_update_) {
+        LogMsg("ImgWindow::DrawWindowCB: Processing texture update request");
+        return;
+    }
 
-    ImGui::SetCurrentContext(thisWindow->imgui_context_);
-    ImGui::Render();
+    // only update if the previous texture update is finished
+    if (!thisWindow->skip_a_beat_) {
+        thisWindow->UpdateImgui();
+
+        ImGui::SetCurrentContext(thisWindow->imgui_context_);
+        ImGui::Render();
+    }
+
+    ImDrawData* draw_data = ImGui::GetDrawData();
+    bool request_texture_update_ = false;
+
+    if (draw_data->Textures != nullptr)
+        for (ImTextureData* tex : *draw_data->Textures)
+            if (tex->Status != ImTextureStatus_OK) {
+                request_texture_update_ = true;
+                break;
+            }
+
+    if (request_texture_update_) {
+        LogMsg("ImgWindow::DrawWindowCB: Texture update requested, scheduling background processing");
+        thisWindow->pending_draw_data_ = draw_data;
+        thisWindow->request_texture_update_ = true;
+        thisWindow->skip_a_beat_ = true;
+        XPLMScheduleFlightLoop(thisWindow->bg_processing_fl_, -1, 1);
+        return;
+    }
 
     thisWindow->RenderImGui(ImGui::GetDrawData());
 
@@ -745,7 +777,7 @@ bool ImgWindow::IsInsideWindowDragArea(int x, int y) const {
 
 void ImgWindow::SafeDelete() {
     pending_destruction_.push(this);
-    if (self_destruct_handler_ == nullptr) {
+    if (self_destruct_handler_== nullptr) {
         XPLMCreateFlightLoop_t flParams{
             sizeof(flParams),
             xplm_FlightLoop_Phase_BeforeFlightModel,
@@ -760,14 +792,41 @@ void ImgWindow::SafeDelete() {
 std::queue<ImgWindow*> ImgWindow::pending_destruction_;
 XPLMFlightLoopID ImgWindow::self_destruct_handler_ = nullptr;
 
+// static
 float ImgWindow::SelfDestructCallback(float /*inElapsedSinceLastCall*/, float /*inElapsedTimeSinceLastFlightLoop*/,
-                                      int /*inCounter*/, void* /*inRefcon*/) {
+                                     int /*inCounter*/, void* /*inRefcon*/) {
     while (!pending_destruction_.empty()) {
         auto* thisObj = pending_destruction_.front();
         pending_destruction_.pop();
         delete thisObj;
     }
     return 0;
+}
+
+// static
+float ImgWindow::BgProcessingCb([[maybe_unused]] float inElapsedSinceLastCall,
+                                [[maybe_unused]] float inElapsedTimeSinceLastFlightLoop, [[maybe_unused]] int inCounter,
+                                void* inRefcon) {
+    LogMsg("ImgWindow::BgProcessingCb");
+    ImgWindow* thisWindow = reinterpret_cast<ImgWindow*>(inRefcon);
+    thisWindow->BgProcessing();
+    return 0;
+}
+
+// run stuff that is not allowed in the draw context, like texture updates.
+void ImgWindow::BgProcessing() {
+    if (request_texture_update_) {
+        request_texture_update_ = false;
+        ImGui::SetCurrentContext(imgui_context_);  // is that necessary?
+
+        if (pending_draw_data_->Textures != nullptr)
+            for (ImTextureData* tex : *pending_draw_data_->Textures)
+                if (tex->Status != ImTextureStatus_OK)
+                    UpdateTexture(tex);
+
+        skip_a_beat_ = false;  // continue drawing
+        LogMsg("ImgWindow::BgProcessing: Texture update finished, resuming drawing");
+    }
 }
 
 static bool init_done;

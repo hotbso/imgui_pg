@@ -114,10 +114,21 @@ class ImgWindow {
     static XPLMCursorStatus HandleCursorFuncCB(XPLMWindowID inWindowID, int x, int y, void* inRefcon);
     static int HandleMouseWheelFuncCB(XPLMWindowID inWindowID, int x, int y, int wheel, int clicks, void* inRefcon);
     static int HandleRightClickFuncCB(XPLMWindowID inWindowID, int x, int y, XPLMMouseStatus inMouse, void* inRefcon);
-    static float SelfDestructCallback(float inElapsedSinceLastCall, float inElapsedTimeSinceLastFlightLoop,
-                                      int inCounter, void* inRefcon);
     static std::queue<ImgWindow*> pending_destruction_;
+
     static XPLMFlightLoopID self_destruct_handler_;
+    static float SelfDestructCallback(float /*inElapsedSinceLastCall*/, float /*inElapsedTimeSinceLastFlightLoop*/,
+                                      int /*inCounter*/, void* /*inRefcon*/);
+
+    // for background processing of imgui windows, stuff that's forbidden in draw callbacks.
+    XPLMFlightLoopID bg_processing_fl_;
+    static float BgProcessingCb(float inElapsedSinceLastCall, float inElapsedTimeSinceLastFlightLoop,
+                                int inCounter, void* inRefcon);
+    void BgProcessing();
+
+    bool request_texture_update_ = false;
+    ImDrawData* pending_draw_data_ = nullptr;
+    bool skip_a_beat_ = false;
 
     int HandleMouseClickGeneric(int x, int y, XPLMMouseStatus inMouse, int button = 0);
     void RenderImGui(ImDrawData* draw_data);
