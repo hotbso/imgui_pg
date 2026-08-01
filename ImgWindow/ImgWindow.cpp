@@ -405,6 +405,7 @@ void ImgWindow::UpdateImgui() {
 void ImgWindow::DrawPass() {
     LogMsg("ImgWindow::DrawPass: window %d, state %d", id_, state_);
 
+    // runs in flight loop ctx
     if (state_ == kPreDraw) {
         UpdateImgui();
 
@@ -418,9 +419,10 @@ void ImgWindow::DrawPass() {
                     UpdateTexture(tex);
 
         state_ = kDraw;
-        return;
+        return;     // cocall to next draw callback for drawing
     }
 
+    // runs in draw callback ctx
     if (state_ == kDraw) {
         ImGui::SetCurrentContext(imgui_context_);
         ImGuiIO& io = ImGui::GetIO();
@@ -474,9 +476,10 @@ void ImgWindow::DrawPass() {
         // Give subclasses a chance to do something after all rendering
         AfterRendering();
         state_ = kPostDraw;
-        return;
+        return;     // cocall to next flight loop callback for cleanup
     }
 
+    // runs in flight loop ctx
     if (state_ == kPostDraw) {
         // Hack: Reset the Backspace key if in VR (see HandleKeyFuncCB for details)
         if (reset_backspace_) {
@@ -485,7 +488,7 @@ void ImgWindow::DrawPass() {
             reset_backspace_ = false;
         }
         state_ = kPreDraw;
-        return;
+        return;     // stays in flight loop callback.
     }
 
     assert(false && "ImgWindow::DrawPass: invalid state");
