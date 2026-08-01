@@ -318,54 +318,6 @@ void ImgWindow::UpdateTexture(ImTextureData* tex) {
     }
 }
 
-// Use panel graphics to render the ImGui draw data.
-void ImgWindow::RenderImGui(ImDrawData* draw_data) {
-    // Avoid rendering when minimized, scale coordinates for retina displays (screen coordinates != framebuffer
-    // coordinates)
-    ImGui::SetCurrentContext(imgui_context_);
-    ImGuiIO& io = ImGui::GetIO();
-    if (io.DisplayFramebufferScale.x != 1.0 || io.DisplayFramebufferScale.y != 1.0) {
-        draw_data->ScaleClipRects(io.DisplayFramebufferScale);
-    }
-
-    if (draw_data->Textures != nullptr)
-        for (ImTextureData* tex : *draw_data->Textures)
-            if (tex->Status != ImTextureStatus_OK)
-                UpdateTexture(tex);
-
-    for (int n = 0; n < draw_data->CmdListsCount; n++) {
-        // LogMsg("ImgWindow::RenderImGui: processing draw list %d of %d", n, draw_data->CmdListsCount);
-        const ImDrawList* cmd_list = draw_data->CmdLists[n];
-        const ImDrawVert* vtx_buffer = cmd_list->VtxBuffer.Data;
-        const ImDrawIdx* idx_buffer = cmd_list->IdxBuffer.Data;
-
-        XPLMMesh_t mesh;
-        mesh.vertex_count = cmd_list->VtxBuffer.Size;
-        mesh.vertices = (const float*)vtx_buffer;
-        mesh.index_count = cmd_list->IdxBuffer.Size;
-        mesh.indices = idx_buffer;
-
-        int idx_ofs = 0;
-        draw_calls_.clear();
-        for (int cmd_i = 0; cmd_i < cmd_list->CmdBuffer.Size; cmd_i++) {
-            const ImDrawCmd* pcmd = &cmd_list->CmdBuffer[cmd_i];
-            XPLMDrawCall_t drc;
-            drc.tex_ref = (void*)(intptr_t)pcmd->GetTexID();
-            drc.scissors[0] = pcmd->ClipRect.x;
-            drc.scissors[1] = pcmd->ClipRect.y;
-            drc.scissors[2] = pcmd->ClipRect.z;
-            drc.scissors[3] = pcmd->ClipRect.w;
-            drc.idx_offset = idx_ofs;
-            drc.element_count = pcmd->ElemCount;
-            drc.vtx_offset = 0;  // since we're using a single mesh for the entire draw list
-            draw_calls_.push_back(drc);
-            idx_ofs += pcmd->ElemCount;
-        }
-
-        XPLMDrawCalls(&mesh, draw_calls_.size(), draw_calls_.data());
-    }
-}
-
 void ImgWindow::TranslateToImguiSpace(int inX, int inY, float& outX, float& outY) {
     outX = static_cast<float>(inX - left_);
     if (outX < 0.0f || outX > (float)(right_ - left_)) {
@@ -447,25 +399,70 @@ void ImgWindow::UpdateImgui() {
     first_render_ = false;
 }
 
-void ImgWindow::DrawWindowCB(XPLMWindowID /* inWindowID */, void* inRefcon) {
-    auto* thisWindow = reinterpret_cast<ImgWindow*>(inRefcon);
+void ImgWindow::DrawPass() {
+    UpdateImgui();
 
-    thisWindow->UpdateImgui();
-
-    ImGui::SetCurrentContext(thisWindow->imgui_context_);
+    ImGui::SetCurrentContext(imgui_context_);
     ImGui::Render();
 
-    thisWindow->RenderImGui(ImGui::GetDrawData());
+    auto draw_data = ImGui::GetDrawData();
+
+    ImGuiIO& io = ImGui::GetIO();
+    if (io.DisplayFramebufferScale.x != 1.0 || io.DisplayFramebufferScale.y != 1.0) {
+        draw_data->ScaleClipRects(io.DisplayFramebufferScale);
+    }
+
+    if (draw_data->Textures != nullptr)
+        for (ImTextureData* tex : *draw_data->Textures)
+            if (tex->Status != ImTextureStatus_OK)
+                UpdateTexture(tex);
+
+    for (int n = 0; n < draw_data->CmdListsCount; n++) {
+        // LogMsg("ImgWindow::RenderImGui: processing draw list %d of %d", n, draw_data->CmdListsCount);
+        const ImDrawList* cmd_list = draw_data->CmdLists[n];
+        const ImDrawVert* vtx_buffer = cmd_list->VtxBuffer.Data;
+        const ImDrawIdx* idx_buffer = cmd_list->IdxBuffer.Data;
+
+        XPLMMesh_t mesh;
+        mesh.vertex_count = cmd_list->VtxBuffer.Size;
+        mesh.vertices = (const float*)vtx_buffer;
+        mesh.index_count = cmd_list->IdxBuffer.Size;
+        mesh.indices = idx_buffer;
+
+        int idx_ofs = 0;
+        draw_calls_.clear();
+        for (int cmd_i = 0; cmd_i < cmd_list->CmdBuffer.Size; cmd_i++) {
+            const ImDrawCmd* pcmd = &cmd_list->CmdBuffer[cmd_i];
+            XPLMDrawCall_t drc;
+            drc.tex_ref = (void*)(intptr_t)pcmd->GetTexID();
+            drc.scissors[0] = pcmd->ClipRect.x;
+            drc.scissors[1] = pcmd->ClipRect.y;
+            drc.scissors[2] = pcmd->ClipRect.z;
+            drc.scissors[3] = pcmd->ClipRect.w;
+            drc.idx_offset = idx_ofs;
+            drc.element_count = pcmd->ElemCount;
+            drc.vtx_offset = 0;  // since we're using a single mesh for the entire draw list
+            draw_calls_.push_back(drc);
+            idx_ofs += pcmd->ElemCount;
+        }
+
+        XPLMDrawCalls(&mesh, draw_calls_.size(), draw_calls_.data());
+    }
 
     // Give subclasses a chance to do something after all rendering
-    thisWindow->AfterRendering();
+    AfterRendering();
 
     // Hack: Reset the Backspace key if in VR (see HandleKeyFuncCB for details)
-    if (thisWindow->reset_backspace_) {
+    if (reset_backspace_) {
         ImGuiIO& io = ImGui::GetIO();
         io.AddKeyEvent(ImGuiKey_Backspace, false);
-        thisWindow->reset_backspace_ = false;
+        reset_backspace_ = false;
     }
+}
+
+void ImgWindow::DrawWindowCB(XPLMWindowID /* inWindowID */, void* inRefcon) {
+    auto* thisWindow = reinterpret_cast<ImgWindow*>(inRefcon);
+    thisWindow->DrawPass();
 }
 
 int ImgWindow::HandleMouseClickCB(XPLMWindowID /* inWindowID */, int x, int y, XPLMMouseStatus inMouse,

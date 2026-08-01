@@ -127,7 +127,7 @@ class ImgWindow {
     void BgProcessing();
 
     int HandleMouseClickGeneric(int x, int y, XPLMMouseStatus inMouse, int button = 0);
-    void RenderImGui(ImDrawData* draw_data);
+    void DrawPass();
     void UpdateImgui();
     void TranslateImguiToBoxel(float inX, float inY, int& outX, int& outY);
     void TranslateToImguiSpace(int inX, int inY, float& outX, float& outY);
