@@ -328,6 +328,11 @@ void ImgWindow::RenderImGui(ImDrawData* draw_data) {
         draw_data->ScaleClipRects(io.DisplayFramebufferScale);
     }
 
+    if (draw_data->Textures != nullptr)
+        for (ImTextureData* tex : *draw_data->Textures)
+            if (tex->Status != ImTextureStatus_OK)
+                UpdateTexture(tex);
+
     for (int n = 0; n < draw_data->CmdListsCount; n++) {
         // LogMsg("ImgWindow::RenderImGui: processing draw list %d of %d", n, draw_data->CmdListsCount);
         const ImDrawList* cmd_list = draw_data->CmdLists[n];
@@ -445,37 +450,10 @@ void ImgWindow::UpdateImgui() {
 void ImgWindow::DrawWindowCB(XPLMWindowID /* inWindowID */, void* inRefcon) {
     auto* thisWindow = reinterpret_cast<ImgWindow*>(inRefcon);
 
-    if (thisWindow->request_texture_update_) {
-        LogMsg("ImgWindow::DrawWindowCB: texture update is still in progess");
-        return;
-    }
+    thisWindow->UpdateImgui();
 
-    // only update if the previous texture update is finished
-    if (!thisWindow->skip_a_beat_) {
-        thisWindow->UpdateImgui();
-
-        ImGui::SetCurrentContext(thisWindow->imgui_context_);
-        ImGui::Render();
-    }
-
-    ImDrawData* draw_data = ImGui::GetDrawData();
-    thisWindow->request_texture_update_ = false;
-
-    if (draw_data->Textures != nullptr)
-        for (ImTextureData* tex : *draw_data->Textures)
-            if (tex->Status != ImTextureStatus_OK) {
-                thisWindow->request_texture_update_ = true;
-                break;
-            }
-
-    if (thisWindow->request_texture_update_) {
-        LogMsg("ImgWindow::DrawWindowCB: Texture update requested, scheduling background processing");
-        thisWindow->pending_draw_data_ = draw_data;
-        thisWindow->request_texture_update_ = true;
-        thisWindow->skip_a_beat_ = true;
-        XPLMScheduleFlightLoop(thisWindow->bg_processing_fl_, -1, 1);
-        return;
-    }
+    ImGui::SetCurrentContext(thisWindow->imgui_context_);
+    ImGui::Render();
 
     thisWindow->RenderImGui(ImGui::GetDrawData());
 
@@ -818,18 +796,6 @@ float ImgWindow::BgProcessingCb([[maybe_unused]] float inElapsedSinceLastCall,
 
 // run stuff that is not allowed in the draw context, like texture updates.
 void ImgWindow::BgProcessing() {
-    if (request_texture_update_) {
-        request_texture_update_ = false;
-        ImGui::SetCurrentContext(imgui_context_);  // is that necessary?
-
-        if (pending_draw_data_->Textures != nullptr)
-            for (ImTextureData* tex : *pending_draw_data_->Textures)
-                if (tex->Status != ImTextureStatus_OK)
-                    UpdateTexture(tex);
-
-        skip_a_beat_ = false;  // continue drawing
-        LogMsg("ImgWindow::BgProcessing: Texture update finished, resuming drawing");
-    }
 }
 
 static bool init_done;

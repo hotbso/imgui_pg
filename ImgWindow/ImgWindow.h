@@ -126,10 +126,6 @@ class ImgWindow {
                                 int inCounter, void* inRefcon);
     void BgProcessing();
 
-    bool request_texture_update_ = false;
-    ImDrawData* pending_draw_data_ = nullptr;
-    bool skip_a_beat_ = false;
-
     int HandleMouseClickGeneric(int x, int y, XPLMMouseStatus inMouse, int button = 0);
     void RenderImGui(ImDrawData* draw_data);
     void UpdateImgui();
