@@ -208,6 +208,9 @@ ImgWindow::ImgWindow(int left, int top, int right, int bottom, XPLMWindowDecorat
 }
 
 ImgWindow::~ImgWindow() {
+    if (bg_processing_fl_)
+        XPLMDestroyFlightLoop(bg_processing_fl_);
+
     XPLMDestroyWindow(window_id_);
     LogMsg("draw_calls_.capacity(): %zu", draw_calls_.capacity());
 
