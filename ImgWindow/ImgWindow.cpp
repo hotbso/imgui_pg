@@ -404,64 +404,82 @@ void ImgWindow::UpdateImgui() {
 
 void ImgWindow::DrawPass() {
     LogMsg("ImgWindow::DrawPass: window %d, state %d", id_, state_);
-    UpdateImgui();
 
-    ImGui::SetCurrentContext(imgui_context_);
-    ImGui::Render();
+    if (state_ == kPreDraw) {
+        UpdateImgui();
 
-    auto draw_data = ImGui::GetDrawData();
+        ImGui::SetCurrentContext(imgui_context_);
+        ImGui::Render();
 
-    ImGuiIO& io = ImGui::GetIO();
-    if (io.DisplayFramebufferScale.x != 1.0 || io.DisplayFramebufferScale.y != 1.0) {
-        draw_data->ScaleClipRects(io.DisplayFramebufferScale);
+        auto draw_data = ImGui::GetDrawData();
+        if (draw_data->Textures != nullptr)
+            for (ImTextureData* tex : *draw_data->Textures)
+                if (tex->Status != ImTextureStatus_OK)
+                    UpdateTexture(tex);
+
+        state_ = kDraw;
+        return;
     }
 
-    if (draw_data->Textures != nullptr)
-        for (ImTextureData* tex : *draw_data->Textures)
-            if (tex->Status != ImTextureStatus_OK)
-                UpdateTexture(tex);
+    if (state_ == kDraw) {
+        ImGui::SetCurrentContext(imgui_context_);
+        ImGuiIO& io = ImGui::GetIO();
+        auto draw_data = ImGui::GetDrawData();
 
-    for (int n = 0; n < draw_data->CmdListsCount; n++) {
-        // LogMsg("ImgWindow::RenderImGui: processing draw list %d of %d", n, draw_data->CmdListsCount);
-        const ImDrawList* cmd_list = draw_data->CmdLists[n];
-        const ImDrawVert* vtx_buffer = cmd_list->VtxBuffer.Data;
-        const ImDrawIdx* idx_buffer = cmd_list->IdxBuffer.Data;
-
-        XPLMMesh_t mesh;
-        mesh.vertex_count = cmd_list->VtxBuffer.Size;
-        mesh.vertices = (const float*)vtx_buffer;
-        mesh.index_count = cmd_list->IdxBuffer.Size;
-        mesh.indices = idx_buffer;
-
-        int idx_ofs = 0;
-        draw_calls_.clear();
-        for (int cmd_i = 0; cmd_i < cmd_list->CmdBuffer.Size; cmd_i++) {
-            const ImDrawCmd* pcmd = &cmd_list->CmdBuffer[cmd_i];
-            XPLMDrawCall_t drc;
-            drc.tex_ref = (void*)(intptr_t)pcmd->GetTexID();
-            drc.scissors[0] = pcmd->ClipRect.x;
-            drc.scissors[1] = pcmd->ClipRect.y;
-            drc.scissors[2] = pcmd->ClipRect.z;
-            drc.scissors[3] = pcmd->ClipRect.w;
-            drc.idx_offset = idx_ofs;
-            drc.element_count = pcmd->ElemCount;
-            drc.vtx_offset = 0;  // since we're using a single mesh for the entire draw list
-            draw_calls_.push_back(drc);
-            idx_ofs += pcmd->ElemCount;
+        if (io.DisplayFramebufferScale.x != 1.0 || io.DisplayFramebufferScale.y != 1.0) {
+            draw_data->ScaleClipRects(io.DisplayFramebufferScale);
         }
 
-        XPLMDrawCalls(&mesh, draw_calls_.size(), draw_calls_.data());
+        for (int n = 0; n < draw_data->CmdListsCount; n++) {
+            // LogMsg("ImgWindow::RenderImGui: processing draw list %d of %d", n, draw_data->CmdListsCount);
+            const ImDrawList* cmd_list = draw_data->CmdLists[n];
+            const ImDrawVert* vtx_buffer = cmd_list->VtxBuffer.Data;
+            const ImDrawIdx* idx_buffer = cmd_list->IdxBuffer.Data;
+
+            XPLMMesh_t mesh;
+            mesh.vertex_count = cmd_list->VtxBuffer.Size;
+            mesh.vertices = (const float*)vtx_buffer;
+            mesh.index_count = cmd_list->IdxBuffer.Size;
+            mesh.indices = idx_buffer;
+
+            int idx_ofs = 0;
+            draw_calls_.clear();
+            for (int cmd_i = 0; cmd_i < cmd_list->CmdBuffer.Size; cmd_i++) {
+                const ImDrawCmd* pcmd = &cmd_list->CmdBuffer[cmd_i];
+                XPLMDrawCall_t drc;
+                drc.tex_ref = (void*)(intptr_t)pcmd->GetTexID();
+                drc.scissors[0] = pcmd->ClipRect.x;
+                drc.scissors[1] = pcmd->ClipRect.y;
+                drc.scissors[2] = pcmd->ClipRect.z;
+                drc.scissors[3] = pcmd->ClipRect.w;
+                drc.idx_offset = idx_ofs;
+                drc.element_count = pcmd->ElemCount;
+                drc.vtx_offset = 0;  // since we're using a single mesh for the entire draw list
+                draw_calls_.push_back(drc);
+                idx_ofs += pcmd->ElemCount;
+            }
+
+            XPLMDrawCalls(&mesh, draw_calls_.size(), draw_calls_.data());
+        }
+
+        // Give subclasses a chance to do something after all rendering
+        AfterRendering();
+        state_ = kPostDraw;
+        return;
     }
 
-    // Give subclasses a chance to do something after all rendering
-    AfterRendering();
-
-    // Hack: Reset the Backspace key if in VR (see HandleKeyFuncCB for details)
-    if (reset_backspace_) {
-        ImGuiIO& io = ImGui::GetIO();
-        io.AddKeyEvent(ImGuiKey_Backspace, false);
-        reset_backspace_ = false;
+    if (state_ == kPostDraw) {
+        // Hack: Reset the Backspace key if in VR (see HandleKeyFuncCB for details)
+        if (reset_backspace_) {
+            ImGuiIO& io = ImGui::GetIO();
+            io.AddKeyEvent(ImGuiKey_Backspace, false);
+            reset_backspace_ = false;
+        }
+        state_ = kPreDraw;
+        return;
     }
+
+    assert(false && "ImgWindow::DrawPass: invalid state");
 }
 
 void ImgWindow::DrawWindowCB(XPLMWindowID /* inWindowID */, void* inRefcon) {
@@ -472,8 +490,20 @@ void ImgWindow::DrawWindowCB(XPLMWindowID /* inWindowID */, void* inRefcon) {
         LogMsg("ImgWindow::DrawPass: window %d, scheduled flight loop", iw->id_);
         iw->state_ = kPreDraw;
         return;
-    } else
+    }
+
+    if (iw->state_ == kPreDraw)
         iw->DrawPass();
+
+    if (iw->state_ == kDraw) {
+        iw->DrawPass();
+        // return;
+    }
+
+    // cleanup of the previous draw pass.
+    if (iw->state_ == kPostDraw)
+        iw->DrawPass();
+
 }
 
 // run stuff that is not allowed in the draw context, like texture updates.
