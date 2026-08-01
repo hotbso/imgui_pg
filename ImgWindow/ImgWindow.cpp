@@ -492,9 +492,6 @@ void ImgWindow::DrawWindowCB(XPLMWindowID /* inWindowID */, void* inRefcon) {
         return;
     }
 
-    if (iw->state_ == kPreDraw)
-        iw->DrawPass();
-
     if (iw->state_ == kDraw) {
         iw->DrawPass();
         // return;
@@ -514,6 +511,9 @@ float ImgWindow::FlightLoopCb() {
         state_ = kIdle;
         return 0;  // unschedule the flight loop if the window is not visible
     }
+
+    if (state_ == kPreDraw)
+        DrawPass();
 
     return -1.0f;
 }
