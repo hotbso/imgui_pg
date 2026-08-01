@@ -496,11 +496,6 @@ void ImgWindow::DrawWindowCB(XPLMWindowID /* inWindowID */, void* inRefcon) {
         iw->DrawPass();
         // return;
     }
-
-    // cleanup of the previous draw pass.
-    if (iw->state_ == kPostDraw)
-        iw->DrawPass();
-
 }
 
 // run stuff that is not allowed in the draw context, like texture updates.
@@ -511,6 +506,13 @@ float ImgWindow::FlightLoopCb() {
         state_ = kIdle;
         return 0;  // unschedule the flight loop if the window is not visible
     }
+
+    if (state_ == kDraw)    // obviously we missed a draw CB, just skip it
+        state_ = kPostDraw;
+
+    // cleanup of the previous draw pass.
+    if (state_ == kPostDraw)
+        DrawPass();
 
     if (state_ == kPreDraw)
         DrawPass();
