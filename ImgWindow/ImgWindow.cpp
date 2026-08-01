@@ -424,7 +424,16 @@ void ImgWindow::DrawPass() {
     if (state_ == kDraw) {
         ImGui::SetCurrentContext(imgui_context_);
         ImGuiIO& io = ImGui::GetIO();
+
         auto draw_data = ImGui::GetDrawData();
+        // may be multiple windows fought against each other for the shared font atlas, so we need to check if all
+        // textures are ready before we can draw.
+        if (draw_data->Textures != nullptr)
+            for (ImTextureData* tex : *draw_data->Textures)
+                if (tex->Status != ImTextureStatus_OK) {
+                    state_ = kPostDraw;     // skip the draw pass, textures are not ready yet
+                    return;
+                }
 
         if (io.DisplayFramebufferScale.x != 1.0 || io.DisplayFramebufferScale.y != 1.0) {
             draw_data->ScaleClipRects(io.DisplayFramebufferScale);
