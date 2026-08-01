@@ -403,7 +403,7 @@ void ImgWindow::UpdateImgui() {
 }
 
 void ImgWindow::DrawPass() {
-    LogMsg("ImgWindow::DrawPass: window %d", id_);
+    LogMsg("ImgWindow::DrawPass: window %d, state %d", id_, state_);
     UpdateImgui();
 
     ImGui::SetCurrentContext(imgui_context_);
@@ -465,13 +465,26 @@ void ImgWindow::DrawPass() {
 }
 
 void ImgWindow::DrawWindowCB(XPLMWindowID /* inWindowID */, void* inRefcon) {
-    auto* thisWindow = reinterpret_cast<ImgWindow*>(inRefcon);
-    thisWindow->DrawPass();
+    auto* iw = reinterpret_cast<ImgWindow*>(inRefcon);
+    if (iw->state_ == kIdle) {
+        // obviously the window is visible so we kick off the flight loop to do the actual drawing.
+        XPLMScheduleFlightLoop(iw->fl_id_, -1.0f, 1);  // schedule the flight loop to run immediately
+        LogMsg("ImgWindow::DrawPass: window %d, scheduled flight loop", iw->id_);
+        iw->state_ = kPreDraw;
+        return;
+    } else
+        iw->DrawPass();
 }
 
 // run stuff that is not allowed in the draw context, like texture updates.
 float ImgWindow::FlightLoopCb() {
-    LogMsg("ImgWindow::XPFlightLoopCb window %d", id_);
+    LogMsg("ImgWindow::XPFlightLoopCb window %d, state %d", id_, state_);
+    if (!GetVisible()) {
+        LogMsg("ImgWindow::XPFlightLoopCb window %d: window not visible, unscheduling flight loop", id_);
+        state_ = kIdle;
+        return 0;  // unschedule the flight loop if the window is not visible
+    }
+
     return -1.0f;
 }
 
