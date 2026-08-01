@@ -104,9 +104,9 @@ class ImgWindow {
     XPLMWindowID GetWindowId() const { return window_id_; }
 
    private:
-    static void UpdateTexture(ImTextureData* tex);
+    int id_;
 
-    static void DrawWindowCB(XPLMWindowID inWindowID, void* inRefcon);
+    static void UpdateTexture(ImTextureData* tex);
 
     static int HandleMouseClickCB(XPLMWindowID inWindowID, int x, int y, XPLMMouseStatus inMouse, void* inRefcon);
     static void HandleKeyFuncCB(XPLMWindowID inWindowID, char inKey, XPLMKeyFlags inFlags, char inVirtualKey,
@@ -120,14 +120,27 @@ class ImgWindow {
     static float SelfDestructCallback(float /*inElapsedSinceLastCall*/, float /*inElapsedTimeSinceLastFlightLoop*/,
                                       int /*inCounter*/, void* /*inRefcon*/);
 
+    // states for the draw pass, consider that as coroutines switching between flight loop and draw callback contexts.
+    enum State {
+        kIdle,      // flight loop not running
+        kPreDraw,   // run imgui, prep textures, in flight loop ctx
+        kDraw,      // draw pass, emit the draw calls, in draw callback ctx
+        kPostDraw // cleanup, flight loop ctx
+    };
+
+    State state_ = kIdle;
+
+    std::vector<XPLMDrawCall_t> draw_calls_;
+    void DrawPass();
     // for background processing of imgui windows, stuff that's forbidden in draw callbacks.
-    XPLMFlightLoopID bg_processing_fl_;
-    static float BgProcessingCb(float inElapsedSinceLastCall, float inElapsedTimeSinceLastFlightLoop,
+    XPLMFlightLoopID fl_id_;
+    static float XPFlightLoopCb(float inElapsedSinceLastCall, float inElapsedTimeSinceLastFlightLoop,
                                 int inCounter, void* inRefcon);
-    void BgProcessing();
+    float FlightLoopCb();
+    static void DrawWindowCB(XPLMWindowID inWindowID, void* inRefcon);
+
 
     int HandleMouseClickGeneric(int x, int y, XPLMMouseStatus inMouse, int button = 0);
-    void DrawPass();
     void UpdateImgui();
     void TranslateImguiToBoxel(float inX, float inY, int& outX, int& outY);
     void TranslateToImguiSpace(int inX, int inY, float& outX, float& outY);
@@ -135,7 +148,6 @@ class ImgWindow {
     static ImFontAtlas* shared_font_atlas_;
     static ImGuiContext* global_context_;
 
-    std::vector<XPLMDrawCall_t> draw_calls_;
     std::string window_title_;
 
     XPLMWindowID window_id_;

@@ -54,6 +54,7 @@ static XPLMDataRef frame_rate_period_dr = nullptr;
 
 ImFontAtlas* ImgWindow::shared_font_atlas_ = nullptr;
 ImGuiContext* ImgWindow::global_context_ = nullptr;
+static int id_base = 0;
 
 static ImGuiKey TranslateXPLMKeyToImGui(unsigned char inVirtualKey) {
     switch (inVirtualKey) {
@@ -154,15 +155,17 @@ ImgWindow::ImgWindow(int left, int top, int right, int bottom, XPLMWindowDecorat
     IM_ASSERT(shared_font_atlas_ != nullptr &&
               "ImgWindow::ImgWindow: shared_font_atlas_ is nullptr, call ImgWindowLoadFonts() first");
 
+    id_ = id_base++;
+
     // Create a flight loop id, but don't schedule it yet
     XPLMCreateFlightLoop_t loop_params = {
         sizeof(loop_params),                      // structSize
         xplm_FlightLoop_Phase_BeforeFlightModel,  // phase
-        BgProcessingCb,                             // callbackFunc
+        XPFlightLoopCb,                             // callbackFunc
         (void*)this,                              // refcon
     };
 
-    bg_processing_fl_ = XPLMCreateFlightLoop(&loop_params);
+    fl_id_ = XPLMCreateFlightLoop(&loop_params);
 
     XPLMCreateWindow_t windowParams = {sizeof(windowParams),
                                        left,
@@ -208,8 +211,8 @@ ImgWindow::ImgWindow(int left, int top, int right, int bottom, XPLMWindowDecorat
 }
 
 ImgWindow::~ImgWindow() {
-    if (bg_processing_fl_)
-        XPLMDestroyFlightLoop(bg_processing_fl_);
+    if (fl_id_)
+        XPLMDestroyFlightLoop(fl_id_);
 
     XPLMDestroyWindow(window_id_);
     LogMsg("draw_calls_.capacity(): %zu", draw_calls_.capacity());
@@ -400,6 +403,7 @@ void ImgWindow::UpdateImgui() {
 }
 
 void ImgWindow::DrawPass() {
+    LogMsg("ImgWindow::DrawPass: window %d", id_);
     UpdateImgui();
 
     ImGui::SetCurrentContext(imgui_context_);
@@ -463,6 +467,12 @@ void ImgWindow::DrawPass() {
 void ImgWindow::DrawWindowCB(XPLMWindowID /* inWindowID */, void* inRefcon) {
     auto* thisWindow = reinterpret_cast<ImgWindow*>(inRefcon);
     thisWindow->DrawPass();
+}
+
+// run stuff that is not allowed in the draw context, like texture updates.
+float ImgWindow::FlightLoopCb() {
+    LogMsg("ImgWindow::XPFlightLoopCb window %d", id_);
+    return -1.0f;
 }
 
 int ImgWindow::HandleMouseClickCB(XPLMWindowID /* inWindowID */, int x, int y, XPLMMouseStatus inMouse,
@@ -782,17 +792,11 @@ float ImgWindow::SelfDestructCallback(float /*inElapsedSinceLastCall*/, float /*
 }
 
 // static
-float ImgWindow::BgProcessingCb([[maybe_unused]] float inElapsedSinceLastCall,
+float ImgWindow::XPFlightLoopCb([[maybe_unused]] float inElapsedSinceLastCall,
                                 [[maybe_unused]] float inElapsedTimeSinceLastFlightLoop, [[maybe_unused]] int inCounter,
                                 void* inRefcon) {
-    LogMsg("ImgWindow::BgProcessingCb");
     ImgWindow* thisWindow = reinterpret_cast<ImgWindow*>(inRefcon);
-    thisWindow->BgProcessing();
-    return 0;
-}
-
-// run stuff that is not allowed in the draw context, like texture updates.
-void ImgWindow::BgProcessing() {
+    return thisWindow->FlightLoopCb();
 }
 
 static bool init_done;
