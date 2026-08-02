@@ -63,6 +63,7 @@ static int id_base = 0;
 static std::unordered_map<ImgWindow*, bool> active_window_map_; // ptr -> visible
 static XPLMFlightLoopID fltl_id = nullptr;
 static bool fl_running = false;
+static std::vector<ImgWindow*> pending_destruction;
 
 static ImGuiKey TranslateXPLMKeyToImGui(unsigned char inVirtualKey) {
     switch (inVirtualKey) {
@@ -157,13 +158,11 @@ static ImGuiKey TranslateXPLMKeyToImGui(unsigned char inVirtualKey) {
 }
 
 ImgWindow::ImgWindow(int left, int top, int right, int bottom, XPLMWindowDecoration decoration, XPLMWindowLayer layer)
-    : first_render_(true),
+    : id_(id_base++), first_render_(true),
       preferred_layer_(layer),
       handle_wnd_resize_(xplm_WindowDecorationSelfDecoratedResizable == decoration) {
     IM_ASSERT(shared_font_atlas_ != nullptr &&
               "ImgWindow::ImgWindow: shared_font_atlas_ is nullptr, call ImgWindowLoadFonts() first");
-
-    id_ = id_base++;
 
     XPLMCreateWindow_t windowParams = {sizeof(windowParams),
                                        left,
@@ -539,7 +538,12 @@ bool ImgWindow::FlightLoopCb() {
 // static
 float ImgWindow::XPFlightLoopCb([[maybe_unused]] float inElapsedSinceLastCall,
                                 [[maybe_unused]] float inElapsedTimeSinceLastFlightLoop, [[maybe_unused]] int inCounter,
-                                [[maybe_unused]]void* inRefcon) {
+                                [[maybe_unused]] void* inRefcon) {
+    for (ImgWindow* iw : pending_destruction) {
+        LogMsg("ImgWindow::XPFlightLoopCb: destroying window %d", iw->id_);
+        delete iw;
+    }
+    pending_destruction.clear();
 
     bool have_active_window = false;
     for (auto& [window, visible] : active_window_map_) {
@@ -555,9 +559,8 @@ float ImgWindow::XPFlightLoopCb([[maybe_unused]] float inElapsedSinceLastCall,
         return 0;  // unschedule the flight loop if there are no active windows
     }
 
-    return  -1.0f;
+    return -1.0f;
 }
-
 
 int ImgWindow::HandleMouseClickCB(XPLMWindowID /* inWindowID */, int x, int y, XPLMMouseStatus inMouse,
                                   void* inRefcon) {
@@ -848,32 +851,9 @@ bool ImgWindow::IsInsideWindowDragArea(int x, int y) const {
 }
 
 void ImgWindow::SafeDelete() {
-    pending_destruction_.push(this);
-    if (self_destruct_handler_== nullptr) {
-        XPLMCreateFlightLoop_t flParams{
-            sizeof(flParams),
-            xplm_FlightLoop_Phase_BeforeFlightModel,
-            &ImgWindow::SelfDestructCallback,
-            nullptr,
-        };
-        self_destruct_handler_ = XPLMCreateFlightLoop(&flParams);
-    }
-    XPLMScheduleFlightLoop(self_destruct_handler_, -1, 1);
+    pending_destruction.push_back(this);
 }
 
-std::queue<ImgWindow*> ImgWindow::pending_destruction_;
-XPLMFlightLoopID ImgWindow::self_destruct_handler_ = nullptr;
-
-// static
-float ImgWindow::SelfDestructCallback(float /*inElapsedSinceLastCall*/, float /*inElapsedTimeSinceLastFlightLoop*/,
-                                     int /*inCounter*/, void* /*inRefcon*/) {
-    while (!pending_destruction_.empty()) {
-        auto* thisObj = pending_destruction_.front();
-        pending_destruction_.pop();
-        delete thisObj;
-    }
-    return 0;
-}
 
 static bool init_done;
 // static

@@ -34,16 +34,17 @@
 //
 
 #pragma once
+
 #include <climits>
 #include <string>
 #include <memory>
+#include <vector>
 
 #include <XPLMDisplay.h>
 #include <XPLMProcessing.h>
 #include <XPLMPanelGraphics.h>
 
 #include <imgui.h>
-#include <queue>
 
 class ImgWindow {
    public:
@@ -78,6 +79,7 @@ class ImgWindow {
     bool IsInsideWindowDragArea(int x, int y) const;
 
    protected:
+    const int id_;      // serial no. for logging
     bool first_render_;
 
     ImgWindow(int left, int top, int right, int bottom,
@@ -86,6 +88,8 @@ class ImgWindow {
 
     ImgWindow(const ImgWindow&) = delete;
     ImgWindow& operator=(const ImgWindow&) = delete;
+    ImgWindow(ImgWindow&&) = delete;
+    ImgWindow& operator=(ImgWindow&&) = delete;
 
     void SetWindowTitle(const std::string& title);
 
@@ -99,12 +103,13 @@ class ImgWindow {
 
     virtual bool OnShow();
 
+    // Hhhm, what is the use case here?
+    // It won't work for any window that has some external reference that will be left behind dangling.
     void SafeDelete();
 
     XPLMWindowID GetWindowId() const { return window_id_; }
 
    private:
-    int id_;
 
     static void UpdateTexture(ImTextureData* tex);
 
@@ -114,11 +119,6 @@ class ImgWindow {
     static XPLMCursorStatus HandleCursorFuncCB(XPLMWindowID inWindowID, int x, int y, void* inRefcon);
     static int HandleMouseWheelFuncCB(XPLMWindowID inWindowID, int x, int y, int wheel, int clicks, void* inRefcon);
     static int HandleRightClickFuncCB(XPLMWindowID inWindowID, int x, int y, XPLMMouseStatus inMouse, void* inRefcon);
-    static std::queue<ImgWindow*> pending_destruction_;
-
-    static XPLMFlightLoopID self_destruct_handler_;
-    static float SelfDestructCallback(float /*inElapsedSinceLastCall*/, float /*inElapsedTimeSinceLastFlightLoop*/,
-                                      int /*inCounter*/, void* /*inRefcon*/);
 
     // states for the draw pass, consider that as coroutines switching between flight loop and draw callback contexts.
     enum State {
@@ -131,11 +131,12 @@ class ImgWindow {
 
     std::vector<XPLMDrawCall_t> draw_calls_;
     void DrawPass();
-    // for background processing of imgui windows, stuff that's forbidden in draw callbacks.
+
+    // one global flight loop for all windows
     static float XPFlightLoopCb(float inElapsedSinceLastCall, float inElapsedTimeSinceLastFlightLoop,
                                 int inCounter, void* inRefcon);
 
-    bool FlightLoopCb();    // -> visible
+    bool FlightLoopCb();    // -> window is visible
     static void DrawWindowCB(XPLMWindowID inWindowID, void* inRefcon);
 
     int HandleMouseClickGeneric(int x, int y, XPLMMouseStatus inMouse, int button = 0);
