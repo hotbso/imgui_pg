@@ -27,7 +27,6 @@
 #include <memory>
 
 #include "XPLMDisplay.h"
-#include "XPLMProcessing.h"
 
 #include "imgui.h"
 #include "imgui_stdlib.h"
@@ -91,18 +90,9 @@ void UiFini() {
 ///////////////////////////////////////////////////////////////////////////////////////////
 Ui::Ui(int left, int top, int right, int bottom)
     : ImgWindow(left, top, right, bottom) {
-    // Create a flight loop id, but don't schedule it yet
-    XPLMCreateFlightLoop_t loop_params = {
-        sizeof(loop_params),                      // structSize
-        xplm_FlightLoop_Phase_BeforeFlightModel,  // phase
-        FlightLoopCb,                             // callbackFunc
-        (void*)this,                              // refcon
-    };
 
     ImGuiStyle& style = ImGui::GetStyle();
     style.FontSizeBase = kFontSize;
-
-    flt_id_ = XPLMCreateFlightLoop(&loop_params);
 
     SetWindowTitle("imgui_pg");
     SetWindowResizingLimits(100, 100, 1024, 1024);
@@ -110,8 +100,7 @@ Ui::Ui(int left, int top, int right, int bottom)
 }
 
 Ui::~Ui() {
-    if (flt_id_)
-        XPLMDestroyFlightLoop(flt_id_);
+    LogMsg("Ui::~Ui() called");
 }
 
 void Ui::BuildInterface() {
@@ -140,6 +129,10 @@ void Ui::BuildInterface() {
         ImGui::TextUnformatted("No settings available");
     }
 
+    if (ImGui::Button("Increment counter in flight loop ctx"))
+        inc_user_data_ = true;
+
+    ImGui::Text("User data counter: %d", user_data_);
     if (ImGui::SliderInt("Font size", &font_slider_, 8, 32)) {
         LogMsg("Font size set to %d", font_slider_);
     }
@@ -159,10 +152,9 @@ void Ui::BuildInterface() {
 }
 
 // Delayed actions that require FlightLoop context
-float Ui::FlightLoopCb(float, float, int, void* inRefcon) {
-    LogMsg("FlightLoopCb called with inRefcon=%p", inRefcon);
-
-    //Ui& ui = *reinterpret_cast<Ui*>(inRefcon);
-
-    return 0.0f;
+void Ui::FlightLoopUserCb() noexcept {
+    if (inc_user_data_) {
+        user_data_++;
+        inc_user_data_ = false;
+   }
 }

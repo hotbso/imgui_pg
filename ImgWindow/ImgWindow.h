@@ -78,6 +78,11 @@ class ImgWindow {
     bool HasWindowDragArea(int* pL = nullptr, int* pT = nullptr, int* pR = nullptr, int* pB = nullptr) const;
     bool IsInsideWindowDragArea(int x, int y) const;
 
+    // called pre rendering, in flight loop context.
+    virtual void FlightLoopUserCb() noexcept {
+        // default: do nothing
+    }
+
    protected:
     const int id_;      // serial no. for logging
     bool first_render_;
@@ -110,7 +115,6 @@ class ImgWindow {
     XPLMWindowID GetWindowId() const { return window_id_; }
 
    private:
-
     static void UpdateTexture(ImTextureData* tex);
 
     static int HandleMouseClickCB(XPLMWindowID inWindowID, int x, int y, XPLMMouseStatus inMouse, void* inRefcon);

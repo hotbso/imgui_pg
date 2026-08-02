@@ -26,7 +26,6 @@
 
 // Our own class defining our own UI
 class Ui : public ImgWindow {
-    XPLMFlightLoopID flt_id_ = nullptr;
     std::string pilot_id_ = "12345";
     bool checkbox_state_ = 0;
     bool mono_font_enabled_ = false;
@@ -35,13 +34,14 @@ class Ui : public ImgWindow {
     // Main function: creates the window's UI
     void BuildInterface() override;
 
-    // flight loop callback for delayed actions prohibited in drawloops
-    static float FlightLoopCb(float inElapsedSinceLastCall, float inElapsedTimeSinceLastFlightLoop, int inCounter,
-                              void* inRefcon);
+    int user_data_ = 0;     // some dummy stuff for the callback
+    bool inc_user_data_ = false; // inc counter in flight loop callback
+    void FlightLoopUserCb() noexcept override;
 
    public:
     Ui(int left, int top, int right, int bot);
     ~Ui() override;
+
 };
 
 // Configure and Cleanup

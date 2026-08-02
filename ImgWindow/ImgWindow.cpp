@@ -528,7 +528,7 @@ bool ImgWindow::FlightLoopCb() {
         DrawPass();
 
     if (state_ == kPreDraw) {
-        // call a user CB once we implemented it
+        FlightLoopUserCb();
         DrawPass();
     }
 
