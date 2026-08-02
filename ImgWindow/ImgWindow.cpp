@@ -33,13 +33,17 @@
 // POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include "ImgWindow.h"
-#include "imgui_internal.h"
+#include <string>
+#include <vector>
+#include <unordered_map>
 
 #include <XPLMDataAccess.h>
 #include <XPLMDisplay.h>
 #include <XPLMGraphics.h>
 #include <XPLMPanelGraphics.h>
+
+#include "ImgWindow.h"
+#include "imgui_internal.h"
 
 #include "log_msg.h"
 
@@ -55,6 +59,10 @@ static XPLMDataRef frame_rate_period_dr = nullptr;
 ImFontAtlas* ImgWindow::shared_font_atlas_ = nullptr;
 ImGuiContext* ImgWindow::global_context_ = nullptr;
 static int id_base = 0;
+
+static std::unordered_map<ImgWindow*, bool> active_window_map_; // ptr -> visible
+static XPLMFlightLoopID fltl_id = nullptr;
+static bool fl_running = false;
 
 static ImGuiKey TranslateXPLMKeyToImGui(unsigned char inVirtualKey) {
     switch (inVirtualKey) {
@@ -157,16 +165,6 @@ ImgWindow::ImgWindow(int left, int top, int right, int bottom, XPLMWindowDecorat
 
     id_ = id_base++;
 
-    // Create a flight loop id, but don't schedule it yet
-    XPLMCreateFlightLoop_t loop_params = {
-        sizeof(loop_params),                      // structSize
-        xplm_FlightLoop_Phase_BeforeFlightModel,  // phase
-        XPFlightLoopCb,                             // callbackFunc
-        (void*)this,                              // refcon
-    };
-
-    fl_id_ = XPLMCreateFlightLoop(&loop_params);
-
     XPLMCreateWindow_t windowParams = {sizeof(windowParams),
                                        left,
                                        top,
@@ -208,12 +206,11 @@ ImgWindow::ImgWindow(int left, int top, int right, int bottom, XPLMWindowDecorat
     io.BackendFlags |=
         ImGuiBackendFlags_RendererHasTextures;  // We can honor ImGuiPlatformIO::Textures[] requests during render.
     // keep the current context so the constructor of the derived class can use ImGui functions to set up the interface.
+
+    active_window_map_[this] = true;
 }
 
 ImgWindow::~ImgWindow() {
-    if (fl_id_)
-        XPLMDestroyFlightLoop(fl_id_);
-
     XPLMDestroyWindow(window_id_);
     LogMsg("draw_calls_.capacity(): %zu", draw_calls_.capacity());
 
@@ -227,6 +224,7 @@ ImgWindow::~ImgWindow() {
         }
     LogMsg("ImgWindow::Finalize: destroying ImGui context %p", (void*)imgui_context_);
     ImGui::DestroyContext(imgui_context_);
+    active_window_map_.erase(this);
 }
 
 void ImgWindow::GetWindowGeometry(int& left, int& top, int& right, int& bottom) const noexcept {
@@ -494,12 +492,15 @@ void ImgWindow::DrawPass() {
     assert(false && "ImgWindow::DrawPass: invalid state");
 }
 
-void ImgWindow::DrawWindowCB(XPLMWindowID /* inWindowID */, void* inRefcon) {
+void ImgWindow::DrawWindowCB([[maybe_unused]] XPLMWindowID inWindowID, void* inRefcon) {
     auto* iw = reinterpret_cast<ImgWindow*>(inRefcon);
-    if (iw->state_ == kIdle) {
+    active_window_map_[iw] = true;
+
+    if (!fl_running) {
         // obviously the window is visible so we kick off the flight loop to do the actual drawing.
-        XPLMScheduleFlightLoop(iw->fl_id_, -1.0f, 1);  // schedule the flight loop to run immediately
         LogMsg("ImgWindow::DrawPass: window %d, scheduled flight loop", iw->id_);
+        XPLMScheduleFlightLoop(fltl_id, -1.0f, 1);  // schedule the flight loop to run immediately
+        fl_running = true;
         iw->state_ = kPreDraw;
         return;
     }
@@ -511,12 +512,13 @@ void ImgWindow::DrawWindowCB(XPLMWindowID /* inWindowID */, void* inRefcon) {
 }
 
 // run stuff that is not allowed in the draw context, like texture updates.
-float ImgWindow::FlightLoopCb() {
+bool ImgWindow::FlightLoopCb() {
     LogMsg("ImgWindow::XPFlightLoopCb window %d, state %d", id_, state_);
     if (!GetVisible()) {
         LogMsg("ImgWindow::XPFlightLoopCb window %d: window not visible, unscheduling flight loop", id_);
-        state_ = kIdle;
-        return 0;  // unschedule the flight loop if the window is not visible
+        state_ = kPreDraw;
+        active_window_map_[this] = false;
+        return false;  // unschedule the flight loop if the window is not visible
     }
 
     if (state_ == kDraw)    // obviously we missed a draw CB, just skip it
@@ -526,11 +528,36 @@ float ImgWindow::FlightLoopCb() {
     if (state_ == kPostDraw)
         DrawPass();
 
-    if (state_ == kPreDraw)
+    if (state_ == kPreDraw) {
+        // call a user CB once we implemented it
         DrawPass();
+    }
 
-    return -1.0f;
+    return true;
 }
+
+// static
+float ImgWindow::XPFlightLoopCb([[maybe_unused]] float inElapsedSinceLastCall,
+                                [[maybe_unused]] float inElapsedTimeSinceLastFlightLoop, [[maybe_unused]] int inCounter,
+                                [[maybe_unused]]void* inRefcon) {
+
+    bool have_active_window = false;
+    for (auto& [window, visible] : active_window_map_) {
+        if (!visible)
+            continue;
+        if (window->FlightLoopCb())
+            have_active_window = true;
+    }
+
+    if (!have_active_window) {
+        LogMsg("ImgWindow::XPFlightLoopCb: no active windows, unscheduling flight loop");
+        fl_running = false;
+        return 0;  // unschedule the flight loop if there are no active windows
+    }
+
+    return  -1.0f;
+}
+
 
 int ImgWindow::HandleMouseClickCB(XPLMWindowID /* inWindowID */, int x, int y, XPLMMouseStatus inMouse,
                                   void* inRefcon) {
@@ -848,14 +875,6 @@ float ImgWindow::SelfDestructCallback(float /*inElapsedSinceLastCall*/, float /*
     return 0;
 }
 
-// static
-float ImgWindow::XPFlightLoopCb([[maybe_unused]] float inElapsedSinceLastCall,
-                                [[maybe_unused]] float inElapsedTimeSinceLastFlightLoop, [[maybe_unused]] int inCounter,
-                                void* inRefcon) {
-    ImgWindow* thisWindow = reinterpret_cast<ImgWindow*>(inRefcon);
-    return thisWindow->FlightLoopCb();
-}
-
 static bool init_done;
 // static
 bool ImgWindow::Initialize() {
@@ -873,6 +892,17 @@ bool ImgWindow::Initialize() {
     io.BackendFlags |=
         ImGuiBackendFlags_RendererHasTextures;  // We can honor ImGuiPlatformIO::Textures[] requests during render.
     shared_font_atlas_ = io.Fonts;
+
+    // Create a flight loop id, but don't schedule it yet
+    XPLMCreateFlightLoop_t loop_params = {
+        sizeof(loop_params),                      // structSize
+        xplm_FlightLoop_Phase_BeforeFlightModel,  // phase
+        XPFlightLoopCb,                             // callbackFunc
+        nullptr,                              // refcon
+    };
+
+    fltl_id = XPLMCreateFlightLoop(&loop_params);
+    fl_running = false;
     return true;
 }
 
@@ -886,8 +916,13 @@ void ImgWindow::Finalize() {
             tex->SetStatus(ImTextureStatus_WantDestroy);
             UpdateTexture(tex);
         }
+
     LogMsg("ImgWindow::Finalize: destroying ImGui context %p", (void*)global_context_);
     ImGui::DestroyContext(global_context_);
     global_context_ = nullptr;
     shared_font_atlas_ = nullptr;
+
+   if (fltl_id)
+        XPLMDestroyFlightLoop(fltl_id);
+
 }

@@ -122,23 +122,21 @@ class ImgWindow {
 
     // states for the draw pass, consider that as coroutines switching between flight loop and draw callback contexts.
     enum State {
-        kIdle,      // flight loop not running
-        kPreDraw,   // run imgui, prep textures, in flight loop ctx
-        kDraw,      // draw pass, emit the draw calls, in draw callback ctx
-        kPostDraw // cleanup, flight loop ctx
+        kPreDraw,  // run imgui, prep textures, in flight loop ctx
+        kDraw,     // draw pass, emit the draw calls, in draw callback ctx
+        kPostDraw  // cleanup, flight loop ctx
     };
 
-    State state_ = kIdle;
+    State state_ = kPreDraw;
 
     std::vector<XPLMDrawCall_t> draw_calls_;
     void DrawPass();
     // for background processing of imgui windows, stuff that's forbidden in draw callbacks.
-    XPLMFlightLoopID fl_id_;
     static float XPFlightLoopCb(float inElapsedSinceLastCall, float inElapsedTimeSinceLastFlightLoop,
                                 int inCounter, void* inRefcon);
-    float FlightLoopCb();
-    static void DrawWindowCB(XPLMWindowID inWindowID, void* inRefcon);
 
+    bool FlightLoopCb();    // -> visible
+    static void DrawWindowCB(XPLMWindowID inWindowID, void* inRefcon);
 
     int HandleMouseClickGeneric(int x, int y, XPLMMouseStatus inMouse, int button = 0);
     void UpdateImgui();
