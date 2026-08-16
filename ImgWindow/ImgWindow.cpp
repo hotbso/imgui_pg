@@ -289,7 +289,7 @@ void ImgWindow::UpdateTexture(ImTextureData* tex) {
         void* pg_tex_id = XPLMCreateTexture(pixels, tex->Width, tex->Height);
         tex->SetTexID((ImTextureID)(intptr_t)pg_tex_id);  // specify backend-specific ImTextureID identifier
         tex->SetStatus(ImTextureStatus_OK);
-        LogMsg("ImgWindow::UpdateTexture: Created texture %p for ImTextureData %p", pg_tex_id, (void*)tex);
+        // LogMsg("ImgWindow::UpdateTexture: Created texture %p for ImTextureData %p", pg_tex_id, (void*)tex);
     }
 
     if (tex->Status == ImTextureStatus_WantUpdates) {
@@ -297,20 +297,20 @@ void ImgWindow::UpdateTexture(ImTextureData* tex) {
         void* pg_tex_id = (void*)(intptr_t)tex->GetTexID();
         if (pg_tex_id) {
             XPLMDestroyTexture(pg_tex_id);
-            LogMsg("ImgWindow::UpdateTexture: Destroyed texture %p for ImTextureData %p", pg_tex_id, (void*)tex);
+            // LogMsg("ImgWindow::UpdateTexture: Destroyed texture %p for ImTextureData %p", pg_tex_id, (void*)tex);
         }
         const unsigned char* pixels = static_cast<const unsigned char*>(tex->GetPixels());
         pg_tex_id = XPLMCreateTexture(pixels, tex->Width, tex->Height);
         tex->SetTexID((ImTextureID)(intptr_t)pg_tex_id);  // specify backend-specific ImTextureID identifier
         tex->SetStatus(ImTextureStatus_OK);
-        LogMsg("ImgWindow::UpdateTexture: Created texture %p for ImTextureData %p", pg_tex_id, (void*)tex);
+        // LogMsg("ImgWindow::UpdateTexture: Created texture %p for ImTextureData %p", pg_tex_id, (void*)tex);
     }
 
     if (tex->Status == ImTextureStatus_WantDestroy) {
         void* pg_tex_id = (void*)(intptr_t)tex->GetTexID();
         if (pg_tex_id) {
             XPLMDestroyTexture(pg_tex_id);
-            LogMsg("ImgWindow::UpdateTexture: Destroyed texture %p for ImTextureData %p", pg_tex_id, (void*)tex);
+            // LogMsg("ImgWindow::UpdateTexture: Destroyed texture %p for ImTextureData %p", pg_tex_id, (void*)tex);
         }
 
         tex->SetTexID(ImTextureID_Invalid);
@@ -400,7 +400,7 @@ void ImgWindow::UpdateImgui() {
 }
 
 void ImgWindow::DrawPass() {
-    LogMsg("ImgWindow::DrawPass: window %d, state %d", id_, state_);
+    // LogMsg("ImgWindow::DrawPass: window %d, state %d", id_, state_);
 
     // runs in flight loop ctx
     if (state_ == kPreDraw) {
@@ -439,7 +439,7 @@ void ImgWindow::DrawPass() {
         }
 
         for (int n = 0; n < draw_data->CmdListsCount; n++) {
-            // LogMsg("ImgWindow::RenderImGui: processing draw list %d of %d", n, draw_data->CmdListsCount);
+            // LogMsg("ImgWindow::DrawPass: processing draw list %d of %d", n, draw_data->CmdListsCount);
             const ImDrawList* cmd_list = draw_data->CmdLists[n];
             const ImDrawVert* vtx_buffer = cmd_list->VtxBuffer.Data;
             const ImDrawIdx* idx_buffer = cmd_list->IdxBuffer.Data;
@@ -497,7 +497,7 @@ void ImgWindow::DrawWindowCB([[maybe_unused]] XPLMWindowID inWindowID, void* inR
 
     if (!fl_running) {
         // obviously the window is visible so we kick off the flight loop to do the actual drawing.
-        LogMsg("ImgWindow::DrawPass: window %d, scheduled flight loop", iw->id_);
+        // LogMsg("ImgWindow::DrawWindowCB: window %d, scheduled flight loop", iw->id_);
         XPLMScheduleFlightLoop(fltl_id, -1.0f, 1);  // schedule the flight loop to run immediately
         fl_running = true;
         iw->state_ = kPreDraw;
@@ -512,9 +512,9 @@ void ImgWindow::DrawWindowCB([[maybe_unused]] XPLMWindowID inWindowID, void* inR
 
 // run stuff that is not allowed in the draw context, like texture updates.
 bool ImgWindow::FlightLoopCb() {
-    LogMsg("ImgWindow::XPFlightLoopCb window %d, state %d", id_, state_);
+    // LogMsg("ImgWindow::XPFlightLoopCb window %d, state %d", id_, state_);
     if (!GetVisible()) {
-        LogMsg("ImgWindow::XPFlightLoopCb window %d: window not visible, unscheduling flight loop", id_);
+        // LogMsg("ImgWindow::XPFlightLoopCb window %d: window not visible, unscheduling flight loop", id_);
         state_ = kPreDraw;
         active_window_map_[this] = false;
         return false;  // unschedule the flight loop if the window is not visible
@@ -540,7 +540,7 @@ float ImgWindow::XPFlightLoopCb([[maybe_unused]] float inElapsedSinceLastCall,
                                 [[maybe_unused]] float inElapsedTimeSinceLastFlightLoop, [[maybe_unused]] int inCounter,
                                 [[maybe_unused]] void* inRefcon) {
     for (ImgWindow* iw : pending_destruction) {
-        LogMsg("ImgWindow::XPFlightLoopCb: destroying window %d", iw->id_);
+        // LogMsg("ImgWindow::XPFlightLoopCb: destroying window %d", iw->id_);
         delete iw;
     }
     pending_destruction.clear();
@@ -554,7 +554,7 @@ float ImgWindow::XPFlightLoopCb([[maybe_unused]] float inElapsedSinceLastCall,
     }
 
     if (!have_active_window) {
-        LogMsg("ImgWindow::XPFlightLoopCb: no active windows, unscheduling flight loop");
+        // LogMsg("ImgWindow::XPFlightLoopCb: no active windows, unscheduling flight loop");
         fl_running = false;
         return 0;  // unschedule the flight loop if there are no active windows
     }
@@ -703,8 +703,8 @@ int ImgWindow::HandleMouseClickGeneric(int x, int y, XPLMMouseStatus inMouse, in
 
 void ImgWindow::HandleKeyFuncCB(XPLMWindowID /*inWindowID*/, char inKey, XPLMKeyFlags inFlags, char inVirtualKey,
                                 void* inRefcon, int blosingFocus) {
-    LogMsg("ImgWindow::HandleKeyFuncCB: inKey=%d, inFlags=%08x, inVirtualKey=%d, blosingFocus=%d", (unsigned)inKey,
-           (unsigned)inFlags, (unsigned)inVirtualKey, blosingFocus);
+    // LogMsg("ImgWindow::HandleKeyFuncCB: inKey=%d, inFlags=%08x, inVirtualKey=%d, blosingFocus=%d", (unsigned)inKey,
+    //        (unsigned)inFlags, (unsigned)inVirtualKey, blosingFocus);
     auto* thisWindow = reinterpret_cast<ImgWindow*>(inRefcon);
     ImGui::SetCurrentContext(thisWindow->imgui_context_);
     ImGuiIO& io = ImGui::GetIO();
