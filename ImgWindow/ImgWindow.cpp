@@ -215,13 +215,13 @@ ImgWindow::~ImgWindow() {
 
     ImGui::SetCurrentContext(imgui_context_);
 
-    LogMsg("ImgWindow::Finalize: destroying ImGui textures");
+    LogMsg("ImgWindow::~ImgWindow: destroying ImGui textures");
     for (ImTextureData* tex : ImGui::GetPlatformIO().Textures)
         if (tex->RefCount == 1) {
             tex->SetStatus(ImTextureStatus_WantDestroy);
             UpdateTexture(tex);
         }
-    LogMsg("ImgWindow::Finalize: destroying ImGui context %p", (void*)imgui_context_);
+    LogMsg("ImgWindow::~ImgWindow: destroying ImGui context %p", (void*)imgui_context_);
     ImGui::DestroyContext(imgui_context_);
     active_window_map_.erase(this);
 }
