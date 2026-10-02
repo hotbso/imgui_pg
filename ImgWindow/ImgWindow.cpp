@@ -467,7 +467,11 @@ void ImgWindow::DrawPass() {
                 idx_ofs += pcmd->ElemCount;
             }
 
+            XPLMTransformPush();
+            XPLMTransformTranslate(left_, top_);
+            XPLMTransformScale(1.0f, -1.0f);    // ImGui is Y-down
             XPLMDrawCalls(&mesh, draw_calls_.size(), draw_calls_.data());
+            XPLMTransformPop();
         }
 
         // Give subclasses a chance to do something after all rendering
